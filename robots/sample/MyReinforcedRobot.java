@@ -1,30 +1,29 @@
 package sample;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.Random;
 
 import robocode.AdvancedRobot;
 import robocode.DeathEvent;
-import robocode.RoundEndedEvent;
 import robocode.ScannedRobotEvent;
 import robocode.WinEvent;
 
-public class PlatoRobot extends AdvancedRobot {
+public class MyReinforcedRobot extends AdvancedRobot {
+    
+    StateReporter stateReporter;
+    Network network;
+    
+    boolean surrender = false;
 
-	StateReporter stateReporter;
-	Network network;
-
-	boolean surrender = false;
-	File networkFile;
-
-	sample.State lastState;
+    File networkFile;
+    
+    sample.State lastState;
 	double lastBearing;
 	double lastEnergy;
 	Action lastAction = Action.NOTHING;
 	double lastReward;
 
-	private enum Action {
+    private enum Action {
 		FORWARD, BACKWARD, LEFT, RIGHT, FIRE, NOTHING;
 
 		public static Action fromInteger(int x) {
@@ -46,7 +45,7 @@ public class PlatoRobot extends AdvancedRobot {
 		}
 	}
 
-	public void run() {
+    public void run() {
 		this.surrender = false;
 		this.stateReporter = new StateReporter("localhost", 8000);
 		this.network = new Network();
@@ -54,7 +53,7 @@ public class PlatoRobot extends AdvancedRobot {
 		Random rand = new Random();
 		this.networkFile = this.getDataFile("network" + rand.nextInt() + ".hdf5");
 		// this.networkFile = this.getDataFile("network.hfd5");
-		this.network.downloadNetwork("http://localhost:8001", this.networkFile);
+		//this.network.downloadNetwork("http://localhost:8001", this.networkFile);
 		long end = System.currentTimeMillis();
 
 		System.out.println("Loading network took " + (end - start) + " ms");

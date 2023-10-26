@@ -272,11 +272,18 @@ public class TeamRobot4 extends AdvancedRobot{
     	double result = 0.0;
     	int diffEnergy = energy-lastEnergy;
     	
-    	if(diffEnergy>0.0) {result += 25.0;};
+    	if(diffEnergy>0.0) {
+			result += 25.0;
+		}
+
+		if(diffEnergy < 0.0){
+			result -=  25.0;
+		}
    	
     	if(result==0.0) {
     		return 0.0;
     	}
+
     	return result;
     }
 
@@ -301,7 +308,7 @@ public class TeamRobot4 extends AdvancedRobot{
     }
     
     public void onBulletMissed(BulletMissedEvent e) {
-    	bulletMissedPen -= 10;
+    	bulletMissedPen -= 15;
     }
     
     public void onBulletHit(BulletHitEvent e) {
@@ -323,7 +330,7 @@ public class TeamRobot4 extends AdvancedRobot{
 
 		
 //		************************************************************
-//		*******Source: http://robowiki.net/wiki/Linear_Targeting****
+//		*******Source: https://robowiki.net/wiki/Linear_Targeting ****
 		double myX = getX();
 		double myY = getY();
 		double absoluteBearing = getHeadingRadians() + e.getBearingRadians();

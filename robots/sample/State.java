@@ -1,4 +1,4 @@
-package lk;
+package sample;
 
 import java.nio.ByteBuffer;
 

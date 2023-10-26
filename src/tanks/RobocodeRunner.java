@@ -19,8 +19,8 @@ public class RobocodeRunner {
 
 	public static void main(String[] args) throws IOException {
 
-		String nazevTridyMehoRobota = "MujRobot";
-		String seznamProtivniku = "TeamRobot1, TeamRobot2, TeamRobot3, TeamRobot4";
+		String nazevTridyMehoRobota = "TeamRobot3";
+		String seznamProtivniku = "TeamRobot4";
 
 		runRobocode(nazevTridyMehoRobota, seznamProtivniku);
 	}
