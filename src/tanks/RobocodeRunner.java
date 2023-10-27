@@ -20,7 +20,7 @@ public class RobocodeRunner {
 	public static void main(String[] args) throws IOException {
 
 		String nazevTridyMehoRobota = "TeamRobot3";
-		String seznamProtivniku = "TeamRobot4";
+		String seznamProtivniku = "NeatRobot2";
 
 		runRobocode(nazevTridyMehoRobota, seznamProtivniku);
 	}
@@ -74,7 +74,7 @@ public class RobocodeRunner {
 
 		// Setup the battle specification
 
-		int numberOfRounds = 1000;
+		int numberOfRounds = 1000000;
 		BattlefieldSpecification battlefield = new BattlefieldSpecification(800, 600); // 800x600
 		// RobotSpecification[] selectedRobots =
 		// engine.getLocalRepository("sample.Corners, sample.MujRobot");

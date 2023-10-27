@@ -21,7 +21,7 @@ import robocode.RoundEndedEvent;
 import robocode.ScannedRobotEvent;
 import robocode.StatusEvent;
 
-public class NeatRobot extends AdvancedRobot implements Environment {
+public class NeatRobot2 extends AdvancedRobot implements Environment {
 
     // Parameters
     private int wasHitByEnemy = 0;
@@ -60,7 +60,7 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 	private static float robotY = 0.0f;
 	private static float robotEnergy = 0.0f;
 
-    private static double currentReward = 0;
+    private static double reward = 0;
 	private static double lastReward = 0;
 
 	private static boolean afterFirstRound = false;
@@ -119,7 +119,7 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 		generation = 0;
 
 		for(;;){
-			pool.evaluateFitness(this);
+			pool.evaluateFitness(new NeatRobot2());
 			topGenome = pool.getTopGenome();
 			generation++;
 			pool.breedNewGeneration();
@@ -136,6 +136,10 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 		return sum / array.size();
 	}
 
+    private static double sigmoid(float x){
+        return 1/(1+Math.exp(-x));
+    }
+
     @Override
     public void evaluateFitness(ArrayList<Genome> population) {
         
@@ -145,7 +149,7 @@ public class NeatRobot extends AdvancedRobot implements Environment {
             
                 // Predict next move
             double absoluteBearing = robotHeading + robotGunHeading;
-			float inputs[] = {wasHitByBullet, wasHitByEnemy, hitWall, spotEnemy, hitEnemy, missEnemy, (float) robotEnergy, (float) robotX, (float) robotY,
+			float inputs[] = {(float) robotEnergy, (float) robotX, (float) robotY,
 				(float) robotHeading, (float) absoluteBearing, (float) robotGunHeading, (float) robotGunHeat, (float) robotRadarHeading, (float) robotVelocity, 
 				eSpottedX, eSpottedY, eBearing, eHeading, eVelocity, eAbsBearing, eDistance, eBulletBearing, eBulletHeading, eBulletPower, eBulletVelocity, 
 				eHitX, eHitY, eEnergy, bulletHitPower, bulletHitVelocity, bulletHitHeading, (float) enemiesRemaining, (float) robotDistanceRemaining}; //34 inputs
@@ -155,7 +159,7 @@ public class NeatRobot extends AdvancedRobot implements Environment {
             this.doAction(outputs);
 			currentState = inputs;
 			lastAction = outputs;
-            fitness = 1/(Integer.MAX_VALUE - getAvgArray(calcQ(inputs, outputs)));
+            fitness = (float) sigmoid((float) reward);
             this.setGlobalsToZero();
             gene.setFitness(fitness);
         } 
@@ -273,65 +277,65 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 			robotEnergy = (float) this.getEnergy();
 			if (energy > 0 && enemies_dead > 0)
 			{
-				currentReward += 15;
+				reward += 15;
 			}
 			else if (energy > 0 && enemies_dead > 1)
 			{
-				currentReward += 30;
+				reward += 30;
 			}
 			else if (energy > 0 && enemies_dead > 2)
 			{
-				currentReward += 60;
+				reward += 60;
 			}
 			else if (energy > 0 && enemies_dead > 3)
 			{
-				currentReward += 120;
+				reward += 120;
 			}
 			else if (energy > 0 && enemies_dead > 4)
 			{
-				currentReward += 240;
+				reward += 240;
 			}
 			else if (energy > 0 && enemies_dead > 5)
 			{
-				currentReward += 480;
+				reward += 480;
 			}
 			if(lastEnergy > this.getEnergy())
 			{
-				currentReward += - 20;
+				reward += - 20;
 			}
 			if (hitWallPen != 0) {
-				currentReward += hitWallPen;
+				reward += hitWallPen;
 				hitWallPen = 0;
 			}
 			if (hitEnemyPen != 0) {
-				currentReward += hitEnemyPen;
+				reward += hitEnemyPen;
 				hitEnemyPen = 0;
 			}
 			if (bulletHitBulletPen != 0) {
-				currentReward += bulletHitBulletPen;
+				reward += bulletHitBulletPen;
 				bulletHitBulletPen = 0;
 			}
 			if (enemyScannedPen != 0) {
-				currentReward += enemyScannedPen;
+				reward += enemyScannedPen;
 				enemyScannedPen = 0;
 			}
 			if (bulletMissedPen != 0) {
-				currentReward += bulletMissedPen;
+				reward += bulletMissedPen;
 				bulletMissedPen = 0;
 			}
 			if (bulletHitPen != 0) {
-				currentReward += bulletHitPen;
+				reward += bulletHitPen;
 				bulletHitPen = 0;
 			}
 			if (hitByBullet != 0) {
-				currentReward += hitByBullet;
+				reward += hitByBullet;
 				hitByBullet = 0;
 			}
 			lastEnergy = energy;
 			lastState = currentState;
 			lastAction = currentAction;
-			lastReward = currentReward;
-			currentReward = 0.0;
+			lastReward = reward;
+			reward = 0.0;
 		}
 		afterFirstRound = true;
 		

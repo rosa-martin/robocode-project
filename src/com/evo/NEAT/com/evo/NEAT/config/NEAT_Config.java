@@ -5,10 +5,10 @@ package com.evo.NEAT.com.evo.NEAT.config;
  */
 public class NEAT_Config {
 
-    public static final int INPUTS = 16;
+    public static final int INPUTS = 28;
     public static final int OUTPUTS = 9;
-    public static final int HIDDEN_NODES = 1000000;
-    public static final int POPULATION =300;
+    public static final int HIDDEN_NODES = 100000;
+    public static final int POPULATION = 300;
 
     public static final float COMPATIBILITY_THRESHOLD = 1;
     public static final float EXCESS_COEFFICENT = 2;
