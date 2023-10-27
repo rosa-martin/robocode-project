@@ -64,6 +64,7 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 	private static double lastReward = 0;
 
 	private static boolean afterFirstRound = false;
+    private static boolean isInitialized = false;
 
 	private static int battles = 1;
 	private static double alpha = 0.1; // Learning rate
@@ -86,8 +87,8 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 	private static int enemyScannedPen = 0;
 
 	private static Pool pool = new Pool();
-	private static Genome topGenome;
-	private static int generation;
+	private static Genome topGenome = new Genome();
+	private static int generation = 0;
 
 	private static float sum_current;
 	private static float sum_pred;
@@ -112,19 +113,16 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 	}
 
 	public void run(){
-		pool.initializePool();
+        if (!isInitialized)
+        {
+            pool.initializePool();
+            isInitialized = true;
+        }
 
-		topGenome = new Genome();
-
-		generation = 0;
-
-		for(;;){
-			pool.evaluateFitness(this);
-			topGenome = pool.getTopGenome();
-			generation++;
-			pool.breedNewGeneration();
-			
-		}
+		pool.evaluateFitness(this);
+		topGenome = pool.getTopGenome();
+		generation++;
+		pool.breedNewGeneration();
 	}
 
 	private float getAvgArray(ArrayList<Float> array){
@@ -140,10 +138,7 @@ public class NeatRobot extends AdvancedRobot implements Environment {
     public void evaluateFitness(ArrayList<Genome> population) {
         
         for(Genome gene : population){
-            float fitness = (float) 0.0;
-            gene.setFitness(fitness);
-            
-                // Predict next move
+            // Predict next move
             double absoluteBearing = robotHeading + robotGunHeading;
 			float inputs[] = {wasHitByBullet, wasHitByEnemy, hitWall, spotEnemy, hitEnemy, missEnemy, (float) robotEnergy, (float) robotX, (float) robotY,
 				(float) robotHeading, (float) absoluteBearing, (float) robotGunHeading, (float) robotGunHeat, (float) robotRadarHeading, (float) robotVelocity, 
@@ -155,7 +150,7 @@ public class NeatRobot extends AdvancedRobot implements Environment {
             this.doAction(outputs);
 			currentState = inputs;
 			lastAction = outputs;
-            fitness = 1/(Integer.MAX_VALUE - getAvgArray(calcQ(inputs, outputs)));
+            float fitness = 1/(Integer.MAX_VALUE - getAvgArray(calcQ(inputs, outputs)));
             this.setGlobalsToZero();
             gene.setFitness(fitness);
         } 
@@ -248,7 +243,7 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 		out.print("Inputs: ");
 		printArray(pritnableInputs, out);
 		out.print("Outputs: ");
-		printArray(outputs, out);
+		printArray(values, out);
 
 		execute();
 	}

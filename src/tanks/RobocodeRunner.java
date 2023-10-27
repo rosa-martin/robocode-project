@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
@@ -20,7 +21,7 @@ public class RobocodeRunner {
 	public static void main(String[] args) throws IOException {
 
 		String nazevTridyMehoRobota = "TeamRobot3";
-		String seznamProtivniku = "NeatRobot2";
+		String seznamProtivniku = "NeatRobot";
 
 		runRobocode(nazevTridyMehoRobota, seznamProtivniku);
 	}
