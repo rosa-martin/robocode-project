@@ -20,17 +20,10 @@ import robocode.HitWallEvent;
 import robocode.RoundEndedEvent;
 import robocode.ScannedRobotEvent;
 import robocode.StatusEvent;
+import robocode.control.events.BattleStartedEvent;
 
-public class NeatRobot extends AdvancedRobot implements Environment {
+public class NeatRobot extends AdvancedRobot {
 
-    // Parameters
-    private int wasHitByEnemy = 0;
-	private int hitWall = 0;
-	private int wasHitByBullet = 0;
-	private int spotEnemy = 0;
-	private int hitEnemy = 0;
-	private int missEnemy = 0;
-    
     // Inputs
     private static float eSpottedX = 0.0f;
 	private static float eSpottedY = 0.0f;
@@ -60,152 +53,50 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 	private static float robotY = 0.0f;
 	private static float robotEnergy = 0.0f;
 
-    private static double currentReward = 0;
-	private static double lastReward = 0;
+    private static int currentReward = 0;
 
-	private static boolean afterFirstRound = false;
-    private static boolean isInitialized = false;
-
-	private static int battles = 1;
-	private static double alpha = 0.1; // Learning rate
-    private static double gamma = 0.5; // Eagerness - 0 looks in the near future, 1 looks in the distant future
-
-	private static HashMap<float[], ArrayList<Float>> q_map = new HashMap<float[], ArrayList<Float>>();
-	private static float[] lastState;		// field with 16 states
-	private static float[] currentState;
-	private static float[] currentAction;
-	private static float[] lastAction;
 	private static double lastEnergy;
 
-	// PENALIZATION
-	private static int hitWallPen = 0;
-	private static int hitByBullet = 0;
-	private static int hitEnemyPen = 0;
-	private static int bulletHitBulletPen = 0;
-	private static int bulletMissedPen = 0;
-	private static int bulletHitPen = 0;
-	private static int enemyScannedPen = 0;
-
-	private static Pool pool = new Pool();
-	private static Genome topGenome = new Genome();
+	private static Pool pool;
+	private static Genome topGenome;
+	private NEAT neat;
 	private static int generation = 0;
 
-	private static float sum_current;
-	private static float sum_pred;
-
-	private static float pritnableInputs[];
-	private static float outputs[];
-
-    private void setGlobalsToZero(){
-        this.wasHitByEnemy = 0;
-        this.wasHitByBullet = 0;
-        this.hitWall = 0;
-        this.spotEnemy = 0;
-        this.hitEnemy = 0;
-        this.missEnemy = 0;
-    }
-
-	private void printArray(float arr[], PrintStream out) { //bcz java is fucking retarded
-		for(Float f : arr){
-			out.print(f + ", ");
-		}
-		out.println();
-	}
+	private static float[] inputs;
+	private static float[] outputs;
 
 	public void run(){
-        if (!isInitialized)
-        {
-            pool.initializePool();
-            isInitialized = true;
-        }
-
-		pool.evaluateFitness(this);
-		topGenome = pool.getTopGenome();
-		generation++;
-		pool.breedNewGeneration();
-	}
-
-	private float getAvgArray(ArrayList<Float> array){
-		float sum = 0.0f;
-		for(Float f : array){
-			sum += f;
-		}
-
-		return sum / array.size();
-	}
-
-    @Override
-    public void evaluateFitness(ArrayList<Genome> population) {
-        
-        for(Genome gene : population){
-            // Predict next move
-            double absoluteBearing = robotHeading + robotGunHeading;
-			float inputs[] = {wasHitByBullet, wasHitByEnemy, hitWall, spotEnemy, hitEnemy, missEnemy, (float) robotEnergy, (float) robotX, (float) robotY,
-				(float) robotHeading, (float) absoluteBearing, (float) robotGunHeading, (float) robotGunHeat, (float) robotRadarHeading, (float) robotVelocity, 
-				eSpottedX, eSpottedY, eBearing, eHeading, eVelocity, eAbsBearing, eDistance, eBulletBearing, eBulletHeading, eBulletPower, eBulletVelocity, 
-				eHitX, eHitY, eEnergy, bulletHitPower, bulletHitVelocity, bulletHitHeading, (float) enemiesRemaining, (float) robotDistanceRemaining}; //34 inputs
-                
-            outputs = gene.evaluateNetwork(inputs);
-			pritnableInputs = inputs;
-            this.doAction(outputs);
-			currentState = inputs;
-			lastAction = outputs;
-            float fitness = 1/(Integer.MAX_VALUE - getAvgArray(calcQ(inputs, outputs)));
-            this.setGlobalsToZero();
-            gene.setFitness(fitness);
-        } 
-    }
-
-    public ArrayList<Float> calcQ(float[] lastState, float[] currentState) {
-		if (q_map.containsKey(lastState)) {
-			ArrayList<Float> qs = q_map.get(lastState);
-			ArrayList<Float> maxQs = q_map.get(currentState);
-			ArrayList<Float> newQs = new ArrayList<Float>();
-
-			for (int i = 0; i < qs.size(); i++) {
-				newQs.add((float) ((1 - alpha) * qs.get(i) + alpha * (lastReward + gamma * maxQs.get(i))));
-			}
-
-			out.println("State: " + lastState);
-			out.println("Reward: " + lastReward);
-			out.println("Q-value: " + qs);
-			out.println("New Q-value: " + newQs);
-
-			return newQs;
-		} else {
-			return new ArrayList<Float>(Collections.nCopies(9, 0.0f)); // Return zeros if the state is not present
+		for (;;){
+			pool.evaluateFitness(neat);
+			topGenome = pool.getTopGenome();
+			//float[] actions = topGenome.evaluateNetwork(getInputs());
+			this.doAction(outputs);
 		}
 	}
 
-	public ArrayList<Float> getQ(float[] lastState) {
-		if (q_map.containsKey(lastState)) {
-			return q_map.get(lastState);
-		} else {
-			return new ArrayList<Float>(Collections.nCopies(9, 0.0f)); // Return zeros if the state is not present
-		}
+	public static int getReward() {
+		return currentReward;
 	}
-	
-	public float compareQ(float[] lastState, float[] currentState) {
-		ArrayList<Float> currentQs = getQ(lastState);
-		ArrayList<Float> predQs = calcQ(lastState, currentState);
 
-		sum_current = 0.0f;
-		sum_pred = 0.0f;
+	public static float[] getInputs()
+	{
+		float absoluteBearing = robotHeading + robotGunHeading;
+		return new float[] {(float) robotEnergy, (float) robotX, (float) robotY, (float) robotHeading, absoluteBearing, (float) robotGunHeading, 
+		(float) robotGunHeat, (float) robotRadarHeading, (float) robotVelocity, eSpottedX, eSpottedY, eBearing, eHeading, eVelocity, eAbsBearing, 
+		eDistance, eBulletBearing, eBulletHeading, eBulletPower, eBulletVelocity, eHitX, eHitY, eEnergy, bulletHitPower, bulletHitVelocity, 
+		bulletHitHeading, (float) enemiesRemaining, (float) robotDistanceRemaining}; //28 inputs
+	}
 
-		// Are the new generated actions better in terms of the q values
-		for (int i=0; i<currentQs.size(); i++) {
-			sum_current += currentQs.get(i);
-			sum_pred += predQs.get(i);
-		}
+	public void onBattleStarted(BattleStartedEvent event){
+		neat = new NEAT();
+		pool = new Pool();
+		pool.initializePool();
+		topGenome = new Genome();
+	}
 
-		if (sum_current < sum_pred) {
-			q_map.put(lastState, predQs);
-			return sum_pred;
-		}
-		else{
-			q_map.put(lastState, currentQs);
-			return sum_current;
-		}
+	public static void setOutputs(float[] values)
+	{
+		outputs = values;
 	}
 
 	public void doAction(float[] values) {
@@ -239,102 +130,48 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 
 		out.println("Top fitness: " + topGenome.getPoints());
 		out.println("Generation: " + generation);
-		
-		out.print("Inputs: ");
-		printArray(pritnableInputs, out);
-		out.print("Outputs: ");
-		printArray(values, out);
 
 		execute();
 	}
 
 	public void onStatus(StatusEvent e) {
+		double energy = e.getStatus().getEnergy();
+		int enemy_count = e.getStatus().getOthers();
+		int max_enemies = 6;
+		int enemies_dead = max_enemies - enemy_count;
 		
-		if(afterFirstRound){
-			double energy = e.getStatus().getEnergy();
-			int enemy_count = e.getStatus().getOthers();
-			int max_enemies = 6;
-			int enemies_dead = max_enemies - enemy_count;
-			//init stuff
-			robotHeading = (float) this.getHeading();
-			robotVelocity = (float) this.getVelocity();
-			robotGunHeading = (float) this.getGunHeading();
-			robotGunHeat = (float) this.getGunHeat();
-			enemiesRemaining = (float) this.getOthers();
-			robotDistanceRemaining = (float) this.getDistanceRemaining();
-			robotRadarHeading = (float) this.getRadarHeading();
-			robotX = (float) this.getX();
-			robotY = (float) this.getY();
-			robotEnergy = (float) this.getEnergy();
-			if (energy > 0 && enemies_dead > 0)
-			{
-				currentReward += 15;
-			}
-			else if (energy > 0 && enemies_dead > 1)
-			{
-				currentReward += 30;
-			}
-			else if (energy > 0 && enemies_dead > 2)
-			{
-				currentReward += 60;
-			}
-			else if (energy > 0 && enemies_dead > 3)
-			{
-				currentReward += 120;
-			}
-			else if (energy > 0 && enemies_dead > 4)
-			{
-				currentReward += 240;
-			}
-			else if (energy > 0 && enemies_dead > 5)
-			{
-				currentReward += 480;
-			}
-			if(lastEnergy > this.getEnergy())
-			{
-				currentReward += - 20;
-			}
-			if (hitWallPen != 0) {
-				currentReward += hitWallPen;
-				hitWallPen = 0;
-			}
-			if (hitEnemyPen != 0) {
-				currentReward += hitEnemyPen;
-				hitEnemyPen = 0;
-			}
-			if (bulletHitBulletPen != 0) {
-				currentReward += bulletHitBulletPen;
-				bulletHitBulletPen = 0;
-			}
-			if (enemyScannedPen != 0) {
-				currentReward += enemyScannedPen;
-				enemyScannedPen = 0;
-			}
-			if (bulletMissedPen != 0) {
-				currentReward += bulletMissedPen;
-				bulletMissedPen = 0;
-			}
-			if (bulletHitPen != 0) {
-				currentReward += bulletHitPen;
-				bulletHitPen = 0;
-			}
-			if (hitByBullet != 0) {
-				currentReward += hitByBullet;
-				hitByBullet = 0;
-			}
-			lastEnergy = energy;
-			lastState = currentState;
-			lastAction = currentAction;
-			lastReward = currentReward;
-			currentReward = 0.0;
+		// init stuff
+		robotHeading = (float) this.getHeading();
+		robotVelocity = (float) this.getVelocity();
+		robotGunHeading = (float) this.getGunHeading();
+		robotGunHeat = (float) this.getGunHeat();
+		enemiesRemaining = (float) this.getOthers();
+		robotDistanceRemaining = (float) this.getDistanceRemaining();
+		robotRadarHeading = (float) this.getRadarHeading();
+		robotX = (float) this.getX();
+		robotY = (float) this.getY();
+		robotEnergy = (float) this.getEnergy();
+
+		if (energy > 0 && enemies_dead > 0) {
+			currentReward += 15;
+		} else if (energy > 0 && enemies_dead > 1) {
+			currentReward += 30;
+		} else if (energy > 0 && enemies_dead > 2) {
+			currentReward += 60;
+		} else if (energy > 0 && enemies_dead > 3) {
+			currentReward += 120;
+		} else if (energy > 0 && enemies_dead > 4) {
+			currentReward += 240;
+		} else if (energy > 0 && enemies_dead > 5) {
+			currentReward += 480;
 		}
-		afterFirstRound = true;
-		
-		
+		if (lastEnergy > this.getEnergy()) {
+			currentReward += -20;
+		}
 	}
 
     public void onHitWall(HitWallEvent e) {
-		hitWall = 1;
+
     	double vel =  this.getVelocity();
 		
 		int punishment = 0;
@@ -348,30 +185,27 @@ public class NeatRobot extends AdvancedRobot implements Environment {
     		punishment += -50;
     	}
 
-		hitWallPen = punishment;
+		currentReward += punishment;
     }
     
     public void onHitRobot(HitRobotEvent e) {
-		wasHitByEnemy = 1;
-    	hitEnemyPen = -25;
+    	currentReward += -25;
     }
     
     public void onBulletHitBullet(BulletHitBulletEvent e) {
-    	bulletHitBulletPen = 15;
+    	currentReward += 15;
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
-    	hitByBullet = -70;
+    	currentReward += -70;
 		eBulletBearing = (float) e.getBearing();
 		eBulletHeading = (float) e.getHeading();
 		eBulletPower = (float) e.getPower();
 		eBulletVelocity = (float) e.getVelocity();
-		wasHitByBullet = 1;
     }
     
     public void onBulletMissed(BulletMissedEvent e) {
-    	bulletMissedPen = -15;
-		missEnemy = 1;
+    	currentReward += -15;
     }
     
     public void onBulletHit(BulletHitEvent e) {
@@ -381,14 +215,11 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 		bulletHitVelocity = (float) e.getBullet().getVelocity();
 		eHitX = (float) e.getBullet().getX();
 		eHitY = (float) e.getBullet().getY();
-    	bulletHitPen = 50;
-		hitEnemy = 1;
+    	currentReward += 50;
     }
     
 	public void onScannedRobot(ScannedRobotEvent e) {	
-
-		spotEnemy = 1;
-		enemyScannedPen = 15;
+		currentReward += 15;
 
 		double myX = getX();
 		double myY = getY();
@@ -406,7 +237,10 @@ public class NeatRobot extends AdvancedRobot implements Environment {
 	}
 	
 	public void onRoundEnded(RoundEndedEvent e) {
-		battles++;
+		currentReward = 0;
+		generation++;
+		pool.breedNewGeneration();
+		topGenome.writeTofile();
 	}
     
 }

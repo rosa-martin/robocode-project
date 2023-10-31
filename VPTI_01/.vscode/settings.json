@@ -1,0 +1,22 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.dependency.packagePresentation": "hierarchical",
+    "java.project.referencedLibraries": {
+        "include": [
+            "lib/**/*.jar",
+            "d:\\Robocode\\game\\neuroph\\neuroph-contrib-2.98-sources.jar",
+            "d:\\Robocode\\game\\neuroph\\neuroph-core-2.98-sources.jar",
+            "d:\\Robocode\\game\\neuroph\\neuroph-imgrec-2.98-sources.jar",
+            "d:\\Robocode\\game\\neuroph\\neuroph-ocr-2.98-sources.jar",
+            "d:\\Robocode\\game\\neuroph\\neuroph-core-2.96.jar"
+        ],
+        "exclude": [
+            "d:\\Robocode\\game\\neuroph\\neuroph-imgrec-2.98-javadoc.jar",
+            "lib/neuroph-core-2.98.jar"
+        ]
+    },
+    "java.project.sourcePaths": [
+        "src",
+        "robots"
+    ]
+}
