@@ -93,11 +93,12 @@ public class MultiLayerPerceptron implements Cloneable
 			}
 		}
 		
-		double[] values = new double[fLayers.length];
+		double[] values = new double[2048];
 
 		// Get output
 		for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
 		{
+			//System.out.println(fLayers.length);
 			values[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
 		}
 
@@ -109,7 +110,7 @@ public class MultiLayerPerceptron implements Cloneable
 		return output;
 	}
 	
-	private double softmax(double input, double[] neuronValues) {
+	public static double softmax(double input, double[] neuronValues) {
         double total = 0;
 
 		for (int i = 0; i < neuronValues.length; i++) {
