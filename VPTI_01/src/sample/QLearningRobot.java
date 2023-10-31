@@ -4,7 +4,10 @@ import java.util.HashMap;
 import java.util.Random;
 import java.util.Set;
 
+//import javafx.geometry.Point2D;
 import robocode.*;
+import robocode.util.Utils;
+import java.awt.geom.Point2D;
 
 public class QLearningRobot extends AdvancedRobot {
 
@@ -20,17 +23,22 @@ public class QLearningRobot extends AdvancedRobot {
     private final static int WIDTH = 800;
     private final static double THRESHOLD = 50.0;
 
+    private double[] currentQValues = new double[Action.values().length];
+    private int action;
+
     private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 2*NUM_OF_INPUTS, 4*NUM_OF_INPUTS, 8*NUM_OF_INPUTS, 16*NUM_OF_INPUTS, 32*NUM_OF_INPUTS, 64*NUM_OF_INPUTS, 128*NUM_OF_INPUTS, 256*NUM_OF_INPUTS, NUM_OF_OUTPUTS};
 
     private double enemyBearing;
     private double enemyDistance;
-    private double moveDirection = 1;
+    private static int numFire = 0;
 
     private MultiLayerPerceptron network = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new SigmoidalTransfer());
     HashMap<String, double[]> trainingSet = new HashMap<String, double[]>();
     Random rand = new Random();
 
     private int reward;
+    private double currentReward;
+
 
     public static enum Action {
         MOVE_FORWARD, // Move forward
@@ -87,7 +95,7 @@ public class QLearningRobot extends AdvancedRobot {
         Action action = Action.fromIndex(actionIndex);
         switch (action) {
             case MOVE_FORWARD:
-                setAhead(100*moveDirection); // Move forward by 100 pixels
+                setAhead(100); // Move forward by 100 pixels
                 break;
             case MOVE_BACKWARD:
                 setBack(100); // Move backward by 100 pixels
@@ -111,6 +119,9 @@ public class QLearningRobot extends AdvancedRobot {
                 setTurnGunRight(45); // Turn right by 45 degrees
                 break;
             case DO_NOTHING:
+                if(getScannedRobotEvents().size()==0) {
+				    setTurnRadarRight(360);
+			    }
                 doNothing(); // Do nothing
                 break;
             case FIRE:
@@ -141,8 +152,6 @@ public class QLearningRobot extends AdvancedRobot {
 
     public void run() {
         State currentState = getCurrentState();
-        double[] currentQValues = new double[Action.values().length];
-        int action = 0;
 
         for(;;) {
             if(!this.trainingSet.containsKey(stringifyField(currentState.toArray()))) {
@@ -168,6 +177,7 @@ public class QLearningRobot extends AdvancedRobot {
 
             out.println("CHOSEN ACTION: "+action);
             executeAction(action);
+            currentReward = reward;
 
             State nextState = getCurrentState();
             if(!this.trainingSet.containsKey(stringifyField(nextState.toArray()))) {
@@ -175,10 +185,10 @@ public class QLearningRobot extends AdvancedRobot {
 			}
             out.println("NEXT STATE: "+stringifyField(nextState.toArray()));
 
-            out.println("RECEIVED REWARD: "+reward);
+            out.println("RECEIVED REWARD: "+currentReward);
             double maxQ = getMaxQValue(this.trainingSet.get(stringifyField(nextState.toArray())));
 
-            currentQValues[action] = currentQValues[action] + ALPHA * (reward + GAMMA * maxQ - currentQValues[action]);
+            currentQValues[action] = currentQValues[action] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[action]);
 
             for(int i = 0; i < currentQValues.length; i++){
                 currentQValues[i] = MultiLayerPerceptron.softmax(currentQValues[i], currentQValues);
@@ -194,6 +204,7 @@ public class QLearningRobot extends AdvancedRobot {
             currentState = nextState;
             // Set the current reward to zero
             reward = 0;
+            currentReward = 0;
 
             if (EPSILON>0.001){
                 EPSILON -= EPS_DECAY;
@@ -207,6 +218,64 @@ public class QLearningRobot extends AdvancedRobot {
     
         // Get the distance to the scanned robot
         this.enemyDistance = e.getDistance();
+
+        int angle = (int) Math.round((e.getBearing()+180)/10);
+		int dist = (int) Math.round(e.getDistance()/10);
+		double power = 3.0;
+
+		if(getOthers()==1) {
+			power = 2;
+			if(dist<30&&dist>=15) {power = 2.5;};
+			if(dist<15) {power = 3;};
+		}
+
+		
+//		************************************************************
+//		*******Source: http://robowiki.net/wiki/Linear_Targeting****
+		double myX = getX();
+		double myY = getY();
+		double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
+		double enemyX = getX() + e.getDistance() * Math.sin(absoluteBearing);
+		double enemyY = getY() + e.getDistance() * Math.cos(absoluteBearing);
+		double enemyHeading = e.getHeadingRadians();
+		double enemyVelocity = e.getVelocity();
+		 
+		 
+		double deltaTime = 0;
+		double battleFieldHeight = getBattleFieldHeight(), 
+		       battleFieldWidth = getBattleFieldWidth();
+		double predictedX = enemyX, predictedY = enemyY;
+		while((++deltaTime) * (20.0 - 3.0 * power) < 
+		      Point2D.Double.distance(myX, myY, predictedX, predictedY)){		
+			predictedX += Math.sin(enemyHeading) * enemyVelocity;	
+			predictedY += Math.cos(enemyHeading) * enemyVelocity;
+			if(	predictedX < 18.0 
+				|| predictedY < 18.0
+				|| predictedX > battleFieldWidth - 18.0
+				|| predictedY > battleFieldHeight - 18.0){
+				predictedX = Math.min(Math.max(18.0, predictedX), 
+		                    battleFieldWidth - 18.0);	
+				predictedY = Math.min(Math.max(18.0, predictedY), 
+		                    battleFieldHeight - 18.0);
+				break;
+			}
+		}
+		double theta = Utils.normalAbsoluteAngle(Math.atan2(
+		    predictedX - getX(), predictedY - getY()));
+		 
+		setTurnRadarRightRadians(
+		    Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
+		setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
+//		***********************************************************
+//		***********************************************************
+		
+		fire(power);
+		numFire++;
+		if(numFire!=2) {
+			scan();
+		}
+		numFire = 0;
+		setTurnRadarRight(360);
     }
     
 
@@ -229,7 +298,7 @@ public class QLearningRobot extends AdvancedRobot {
     
     public void onHitWall(HitWallEvent e) {
     	reward += -50.0;
-        moveDirection = -moveDirection;
+        //moveDirection = -moveDirection;
     }
     
     public void onHitRobot(HitRobotEvent e) {
@@ -259,22 +328,22 @@ public class QLearningRobot extends AdvancedRobot {
 		int max_enemies = 5;
 		int enemies_dead = max_enemies - enemy_count;
 
-		if (energy > 0 && enemies_dead > 0)
-		{
-			reward += 15;
-		}
-		else if (energy > 0 && enemies_dead > 1)
-		{
-			reward += 30;
-		}
-		else if (energy > 0 && enemies_dead > 2)
-		{
-			reward += 60;
-		}
-		else if (energy > 0 && enemies_dead > 3)
-		{
-			reward += 120;
-		}
+		//if (energy > 0 && enemies_dead > 0)
+		//{
+		//	reward += 15;
+		//}
+		//else if (energy > 0 && enemies_dead > 1)
+		//{
+		//	reward += 30;
+		//}
+		//else if (energy > 0 && enemies_dead > 2)
+		//{
+		//	reward += 60;
+		//}
+		//else if (energy > 0 && enemies_dead > 3)
+		//{
+		//	reward += 120;
+		//}
 
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             out.println("We have reached the threshold");
