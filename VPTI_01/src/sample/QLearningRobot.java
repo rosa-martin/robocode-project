@@ -96,6 +96,9 @@ public class QLearningRobot extends AdvancedRobot {
         switch (action) {
             case MOVE_FORWARD:
                 setAhead(100); // Move forward by 100 pixels
+                if(getScannedRobotEvents().size()==0) {
+				    setTurnRadarRight(360);
+			    }
                 break;
             case MOVE_BACKWARD:
                 setBack(100); // Move backward by 100 pixels
@@ -119,9 +122,6 @@ public class QLearningRobot extends AdvancedRobot {
                 setTurnGunRight(45); // Turn right by 45 degrees
                 break;
             case DO_NOTHING:
-                if(getScannedRobotEvents().size()==0) {
-				    setTurnRadarRight(360);
-			    }
                 doNothing(); // Do nothing
                 break;
             case FIRE:
@@ -157,7 +157,7 @@ public class QLearningRobot extends AdvancedRobot {
             if(!this.trainingSet.containsKey(stringifyField(currentState.toArray()))) {
 		    	this.trainingSet.put(stringifyField(currentState.toArray()), new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
 			}
-            out.println("STATE OF THE Q TABLE:");
+            //out.println("STATE OF THE Q TABLE:");
             //printMap(this.trainingSet);
         
             out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
@@ -218,6 +218,8 @@ public class QLearningRobot extends AdvancedRobot {
     
         // Get the distance to the scanned robot
         this.enemyDistance = e.getDistance();
+        
+        reward += 20;
 
         int angle = (int) Math.round((e.getBearing()+180)/10);
 		int dist = (int) Math.round(e.getDistance()/10);
@@ -231,7 +233,7 @@ public class QLearningRobot extends AdvancedRobot {
 
 		
 //		************************************************************
-//		*******Source: http://robowiki.net/wiki/Linear_Targeting****
+//		*******Source: http://robowiki.net/wiki/Linear_Targeting ***
 		double myX = getX();
 		double myY = getY();
 		double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
@@ -302,7 +304,7 @@ public class QLearningRobot extends AdvancedRobot {
     }
     
     public void onHitRobot(HitRobotEvent e) {
-    	reward += -30.0;
+    	reward += -10.0;
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
@@ -315,6 +317,9 @@ public class QLearningRobot extends AdvancedRobot {
 
     public void onBulletHit(BulletHitEvent e) {
     	reward += 80;
+        if(e.getEnergy() <= 0){
+            reward += 120;
+        }
     }
 
     public void onRobotDeathEvent(RobotDeathEvent e){
@@ -328,31 +333,31 @@ public class QLearningRobot extends AdvancedRobot {
 		int max_enemies = 5;
 		int enemies_dead = max_enemies - enemy_count;
 
-		//if (energy > 0 && enemies_dead > 0)
-		//{
-		//	reward += 15;
-		//}
-		//else if (energy > 0 && enemies_dead > 1)
-		//{
-		//	reward += 30;
-		//}
-		//else if (energy > 0 && enemies_dead > 2)
-		//{
-		//	reward += 60;
-		//}
-		//else if (energy > 0 && enemies_dead > 3)
-		//{
-		//	reward += 120;
-		//}
+		if (energy > 0 && enemies_dead > 0)
+		{
+			reward += 15;
+		}
+		else if (energy > 0 && enemies_dead > 1)
+		{
+			reward += 30;
+		}
+		else if (energy > 0 && enemies_dead > 2)
+		{
+			reward += 60;
+		}
+		else if (energy > 0 && enemies_dead > 3)
+		{
+			reward += 120;
+		}
 
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             out.println("We have reached the threshold");
-            reward -= 5;
+            reward -= 15;
 
             if (this.getDistanceRemaining() < THRESHOLD) {
                 
                 out.println("We are moving towards the wall.");
-                reward -= 15;
+                reward -= 30;
             }
         } 
 	}
