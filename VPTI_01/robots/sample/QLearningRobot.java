@@ -36,6 +36,7 @@ public class QLearningRobot extends AdvancedRobot {
     private double enemyBearing;
     private double enemyDistance;
     private static int numFire = 0;
+    private double lastEnergy = 100.0;
 
     private MultiLayerPerceptron network = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new HeavysideTransfer());
     private static HashMap<String, double[]> trainingSet = new HashMap<String, double[]>();
@@ -383,11 +384,15 @@ public class QLearningRobot extends AdvancedRobot {
     }
 
     public void onStatus(StatusEvent e) {
-
 		double energy = e.getStatus().getEnergy();
 		int enemy_count = e.getStatus().getOthers();
 		int max_enemies = 4;
 		int enemies_dead = max_enemies - enemy_count;
+
+        if (lastEnergy > energy)
+        {
+            reward += -15;
+        }
 
 		//if (energy > 0 && enemies_dead > 0)
 		//{
@@ -416,6 +421,7 @@ public class QLearningRobot extends AdvancedRobot {
                 reward -= 30;
             }
         } 
+        lastEnergy = energy;
 	}
 }
 
