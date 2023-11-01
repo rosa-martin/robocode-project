@@ -107,28 +107,28 @@ public class QLearningRobot extends AdvancedRobot {
                 if(getScannedRobotEvents().size()==0) {
 				    setTurnRadarRight(360);
 			    }
-                setAhead(100); // Move forward by 100 pixels
+                setAhead(25); // Move forward by 100 pixels
                 break;
             case MOVE_BACKWARD:
-                setBack(100); // Move backward by 100 pixels
+                setBack(25); // Move backward by 100 pixels
                 break;
             case TURN_LEFT:
-                setTurnLeft(45); // Turn left by 45 degrees
+                setTurnLeft(30); // Turn left by 45 degrees
                 break;
             case TURN_RIGHT:
-                setTurnRight(45); // Turn right by 45 degrees
+                setTurnRight(30); // Turn right by 45 degrees
                 break;
             case TURN_RADAR_LEFT:
-                setTurnRadarLeft(45); // Turn left by 45 degrees
+                setTurnRadarLeft(30); // Turn left by 45 degrees
                 break;
             case TURN_RADAR_RIGHT:
-                setTurnRadarRight(45); // Turn right by 45 degrees
+                setTurnRadarRight(30); // Turn right by 45 degrees
                 break;
             case TURN_GUN_LEFT:
-                setTurnGunLeft(45); // Turn left by 45 degrees
+                setTurnGunLeft(30); // Turn left by 45 degrees
                 break;
             case TURN_GUN_RIGHT:
-                setTurnGunRight(45); // Turn right by 45 degrees
+                setTurnGunRight(30); // Turn right by 45 degrees
                 break;
             case SLOW_DOWN:
                 setMaxVelocity(this.getVelocity()/2); // Slow down
@@ -185,13 +185,10 @@ public class QLearningRobot extends AdvancedRobot {
             if(!trainingSet.containsKey(stringifyField(currentState.toArray()))) {
 		    	trainingSet.put(stringifyField(currentState.toArray()), new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
 			}
-            //out.println("STATE OF THE Q TABLE:");
-            //printMap(this.trainingSet);
         
             out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
             
             currentQValues = trainingSet.get(stringifyField(currentState.toArray()));
-            out.println(currentQValues==null);
             
             out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
             
@@ -356,7 +353,7 @@ public class QLearningRobot extends AdvancedRobot {
     }
     
     public void onHitWall(HitWallEvent e) {
-    	reward += -50.0;
+    	reward += -75.0;
         //moveDirection = -moveDirection;
     }
     
@@ -365,22 +362,22 @@ public class QLearningRobot extends AdvancedRobot {
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
-    	reward += -40.0;
+    	reward += -50.0;
     }
 
     public void onBulletMissed(BulletMissedEvent e) {
-    	reward += -5;
+    	reward += -10;
     }
 
     public void onBulletHit(BulletHitEvent e) {
-    	reward += 40;
+    	reward += 25;
         if(e.getEnergy() <= 0){
-            reward += 120;
+            reward += 150;
         }
     }
 
     public void onRobotDeathEvent(RobotDeathEvent e){
-        reward += 80;
+        reward += 100;
     }
 
     public void onStatus(StatusEvent e) {
@@ -413,7 +410,7 @@ public class QLearningRobot extends AdvancedRobot {
 
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             out.println("We have reached the threshold");
-            reward -= 15;
+            reward -= 5;
 
             if (this.getDistanceRemaining() < THRESHOLD) {
                 

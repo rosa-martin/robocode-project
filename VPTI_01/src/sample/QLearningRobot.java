@@ -107,28 +107,28 @@ public class QLearningRobot extends AdvancedRobot {
                 if(getScannedRobotEvents().size()==0) {
 				    setTurnRadarRight(360);
 			    }
-                setAhead(100); // Move forward by 100 pixels
+                setAhead(40); // Move forward by 40 pixels
                 break;
             case MOVE_BACKWARD:
-                setBack(100); // Move backward by 100 pixels
+                setBack(40); // Move backward by 40 pixels
                 break;
             case TURN_LEFT:
-                setTurnLeft(45); // Turn left by 45 degrees
+                setTurnLeft(30); // Turn left by 30 degrees
                 break;
             case TURN_RIGHT:
-                setTurnRight(45); // Turn right by 45 degrees
+                setTurnRight(30); // Turn right by 30 degrees
                 break;
             case TURN_RADAR_LEFT:
-                setTurnRadarLeft(45); // Turn left by 45 degrees
+                setTurnRadarLeft(90); // Turn left by 90 degrees
                 break;
             case TURN_RADAR_RIGHT:
-                setTurnRadarRight(45); // Turn right by 45 degrees
+                setTurnRadarRight(90); // Turn right by 90 degrees
                 break;
             case TURN_GUN_LEFT:
-                setTurnGunLeft(45); // Turn left by 45 degrees
+                setTurnGunLeft(30); // Turn left by 30 degrees
                 break;
             case TURN_GUN_RIGHT:
-                setTurnGunRight(45); // Turn right by 45 degrees
+                setTurnGunRight(30); // Turn right by 30 degrees
                 break;
             case SLOW_DOWN:
                 setMaxVelocity(this.getVelocity()/2); // Slow down
@@ -145,14 +145,14 @@ public class QLearningRobot extends AdvancedRobot {
             case FIRE:
                 if (enemyDistance <= 30)
                 {
-                    fire(8);
+                    fire(Rules.MAX_BULLET_POWER); // Fire a bullet with maximal power because the enemy is nearby
                 }
                 else if (enemyDistance < 30 && enemyDistance < 80)
                 {
-                    fire(5);
+                    fire(Rules.MAX_BULLET_POWER/2);
                 }
                 else{
-                    fire(3); // Fire a bullet with power 3
+                    fire(Rules.MIN_BULLET_POWER); // Fire a bullet with minimal power because the enemy is far away
                 }
                 break;
         }
