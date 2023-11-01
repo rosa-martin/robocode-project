@@ -142,7 +142,17 @@ public class QLearningRobot extends AdvancedRobot {
                 doNothing(); // Do nothing
                 break;
             case FIRE:
-                fire(1); // Fire a bullet with power 1
+                if (enemyDistance <= 30)
+                {
+                    fire(5);
+                }
+                else if (enemyDistance < 30 && enemyDistance < 80)
+                {
+                    fire(3);
+                }
+                else{
+                    fire(1); // Fire a bullet with power 1
+                }
                 break;
         }
         execute(); // Executes all pending commands
@@ -313,14 +323,14 @@ public class QLearningRobot extends AdvancedRobot {
 		setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
 //		***********************************************************
 //		***********************************************************
-		
+		/*
 		fire(power);
 		numFire++;
 		if(numFire!=2) {
 			scan();
 		}
 		numFire = 0;
-		setTurnRadarRight(360);
+		setTurnRadarRight(360);*/
     }
     
 
