@@ -103,6 +103,9 @@ public class QLearningRobot extends AdvancedRobot {
         Action action = Action.fromIndex(actionIndex);
         switch (action) {
             case MOVE_FORWARD:
+                if(getScannedRobotEvents().size()==0) {
+				    setTurnRadarRight(360);
+			    }
                 setAhead(100); // Move forward by 100 pixels
                 break;
             case MOVE_BACKWARD:
@@ -136,9 +139,6 @@ public class QLearningRobot extends AdvancedRobot {
                 setTurnRadarLeftRadians(getRadarTurnRemainingRadians());    // Lock the radar
                 break;
             case DO_NOTHING:
-                if(getScannedRobotEvents().size()==0) {
-				    setTurnRadarRight(360);
-			    }
                 doNothing(); // Do nothing
                 break;
             case FIRE:
