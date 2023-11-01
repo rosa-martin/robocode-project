@@ -1,13 +1,18 @@
 package sample;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
-import java.util.Set;
+
+import sun.misc.Signal;
+import sun.misc.SignalHandler;
 
 //import javafx.geometry.Point2D;
 import robocode.*;
 import robocode.util.Utils;
 import java.awt.geom.Point2D;
+import java.io.IOException;
+import java.io.PrintStream;
 
 public class QLearningRobot extends AdvancedRobot {
 
@@ -17,13 +22,13 @@ public class QLearningRobot extends AdvancedRobot {
     private static double EPSILON = 1.0;                // Exploration rate
     private static double EPS_DECAY = 1.0 / MAX_EPISODES;         // The exploration decay rate => We are focusing on exploitation more that exploration.
 
-    private static final int NUM_OF_INPUTS = 8;
+    private static final int NUM_OF_INPUTS = 10;
     private static final int NUM_OF_OUTPUTS = Action.values().length;
     private final static int HEIGHT = 600;
     private final static int WIDTH = 800;
     private final static double THRESHOLD = 50.0;
 
-    private double[] currentQValues = new double[Action.values().length];
+    private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int action;
 
     private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 256*NUM_OF_INPUTS, NUM_OF_OUTPUTS};
@@ -32,8 +37,8 @@ public class QLearningRobot extends AdvancedRobot {
     private double enemyDistance;
     private static int numFire = 0;
 
-    private MultiLayerPerceptron network = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new SigmoidalTransfer());
-    HashMap<String, double[]> trainingSet = new HashMap<String, double[]>();
+    private MultiLayerPerceptron network = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new HeavysideTransfer());
+    private static HashMap<String, double[]> trainingSet = new HashMap<String, double[]>();
     Random rand = new Random();
 
     private int reward;
@@ -49,6 +54,9 @@ public class QLearningRobot extends AdvancedRobot {
         TURN_RADAR_RIGHT, // Turn radar right
         TURN_GUN_LEFT, // Turn gun left
         TURN_GUN_RIGHT, // Turn gun right
+        SLOW_DOWN, // Slow down
+        FASTER, // Increase the velocity
+        LOCK_THE_RADAR, // Lock the radar
         DO_NOTHING, // Do nothing
         FIRE; // Fire
     
@@ -96,9 +104,6 @@ public class QLearningRobot extends AdvancedRobot {
         switch (action) {
             case MOVE_FORWARD:
                 setAhead(100); // Move forward by 100 pixels
-                if(getScannedRobotEvents().size()==0) {
-				    setTurnRadarRight(360);
-			    }
                 break;
             case MOVE_BACKWARD:
                 setBack(100); // Move backward by 100 pixels
@@ -121,7 +126,19 @@ public class QLearningRobot extends AdvancedRobot {
             case TURN_GUN_RIGHT:
                 setTurnGunRight(45); // Turn right by 45 degrees
                 break;
+            case SLOW_DOWN:
+                setMaxVelocity(this.getVelocity()/2); // Slow down
+                break;
+            case FASTER:
+                setMaxVelocity(this.getVelocity()*2); // Increase the velocity
+                break;
+            case LOCK_THE_RADAR:
+                setTurnRadarLeftRadians(getRadarTurnRemainingRadians());    // Lock the radar
+                break;
             case DO_NOTHING:
+                if(getScannedRobotEvents().size()==0) {
+				    setTurnRadarRight(360);
+			    }
                 doNothing(); // Do nothing
                 break;
             case FIRE:
@@ -154,22 +171,22 @@ public class QLearningRobot extends AdvancedRobot {
         State currentState = getCurrentState();
 
         for(;;) {
-            if(!this.trainingSet.containsKey(stringifyField(currentState.toArray()))) {
-		    	this.trainingSet.put(stringifyField(currentState.toArray()), new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+            if(!trainingSet.containsKey(stringifyField(currentState.toArray()))) {
+		    	trainingSet.put(stringifyField(currentState.toArray()), new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
 			}
             //out.println("STATE OF THE Q TABLE:");
             //printMap(this.trainingSet);
         
             out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
             
-            currentQValues = this.trainingSet.get(stringifyField(currentState.toArray()));
+            currentQValues = trainingSet.get(stringifyField(currentState.toArray()));
             out.println(currentQValues==null);
             
             out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
             
             // If exploring, we take a random action.
             if (Math.random() < EPSILON) { 
-                action = rand.nextInt(Action.values().length);
+                action = rand.nextInt(NUM_OF_OUTPUTS);
             }
             else {
                 action = chooseAction(currentQValues);
@@ -180,13 +197,13 @@ public class QLearningRobot extends AdvancedRobot {
             currentReward = reward;
 
             State nextState = getCurrentState();
-            if(!this.trainingSet.containsKey(stringifyField(nextState.toArray()))) {
-		    	this.trainingSet.put(stringifyField(nextState.toArray()), new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+            if(!trainingSet.containsKey(stringifyField(nextState.toArray()))) {
+		    	trainingSet.put(stringifyField(nextState.toArray()), new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
 			}
             out.println("NEXT STATE: "+stringifyField(nextState.toArray()));
 
             out.println("RECEIVED REWARD: "+currentReward);
-            double maxQ = getMaxQValue(this.trainingSet.get(stringifyField(nextState.toArray())));
+            double maxQ = getMaxQValue(trainingSet.get(stringifyField(nextState.toArray())));
 
             currentQValues[action] = currentQValues[action] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[action]);
 
@@ -194,11 +211,11 @@ public class QLearningRobot extends AdvancedRobot {
                 currentQValues[i] = MultiLayerPerceptron.softmax(currentQValues[i], currentQValues);
             }
             out.println("UPDATED Q VALUES: "+stringifyField(currentQValues));
-            this.trainingSet.put(stringifyField(currentState.toArray()), currentQValues);
+            trainingSet.put(stringifyField(currentState.toArray()), currentQValues);
             //out.println("STATE OF THE Q TABLE:");
             //printMap(this.trainingSet);
             
-            double error = this.network.backPropagate(currentState.toArray(), this.trainingSet.get(stringifyField(currentState.toArray())));
+            double error = this.network.backPropagate(currentState.toArray(), trainingSet.get(stringifyField(currentState.toArray())));
             out.println("CURRENT ERROR: " + error);
             
             currentState = nextState;
@@ -209,6 +226,33 @@ public class QLearningRobot extends AdvancedRobot {
             if (EPSILON>0.001){
                 EPSILON -= EPS_DECAY;
             }     
+
+            // Save everything, when we stop the program -- NOT WORKING YET
+            Signal.handle(new Signal("INT"), new SignalHandler () {
+            public void handle(Signal sig) {
+                out.println("Received SIGINT signal. Terminating...");
+                
+                PrintStream w = null;
+                try {
+                    w = new PrintStream(new RobocodeFileOutputStream(getDataFile("q_map.dat")));
+                    for(Map.Entry<String, double[]> entry: QLearningRobot.trainingSet.entrySet()) {
+                        w.println(entry.getKey()+":"+entry.getValue());
+                    }
+                    if (w.checkError()) {
+                        out.println("Error reading the training set");
+                    }
+                } catch (IOException e) {
+                    out.println("IOException trying to write: ");
+                    e.printStackTrace(out);
+                } finally {
+                    if (w != null) {
+                        w.close();
+                    }
+                }
+                // Force exit anyway
+                System.exit(1);
+            }
+          });
         }
     }
 
@@ -221,7 +265,6 @@ public class QLearningRobot extends AdvancedRobot {
         
         reward += 20;
 
-        int angle = (int) Math.round((e.getBearing()+180)/10);
 		int dist = (int) Math.round(e.getDistance()/10);
 		double power = 3.0;
 
@@ -288,14 +331,17 @@ public class QLearningRobot extends AdvancedRobot {
         double ourHeading = getHeading();
         double ourVelocity = getVelocity();
         double ourEnergy = getEnergy();
-        double gunHeat = getGunHeat();
+        double ourGunHeat = getGunHeat();
+        double ourGunHeading = getGunHeading();
+        double ourRadarHeading = getRadarHeading();
+        
     
         // Get the enemy's bearing and distance from our robot
         double enemyBearing = this.enemyBearing;
         double enemyDistance = this.enemyDistance;
     
         // Return a new State object with these values
-        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, enemyBearing, enemyDistance, gunHeat);
+        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, enemyBearing, enemyDistance, ourGunHeat, ourGunHeading, ourRadarHeading);
     }
     
     public void onHitWall(HitWallEvent e) {
@@ -372,8 +418,10 @@ class State {
     private double enemyBearing; // The bearing to the enemy from the robot's heading
     private double enemyDistance; // The distance to the enemy
     private double gunHeat; //heat of gun
+    private double gunHeading; // The heading of the gun in degrees
+    private double radarHeading; // The heading of the radar in degrees
 
-    public State(double x, double y, double heading, double velocity, double energy, double enemyBearing, double enemyDistance, double gunHeat) {
+    public State(double x, double y, double heading, double velocity, double energy, double enemyBearing, double enemyDistance, double gunHeat, double gunHeading, double radarHeading) {
         this.x = Math.rint(x);
         this.y = Math.rint(y);
         this.heading = Math.rint(heading);
@@ -382,12 +430,14 @@ class State {
         this.enemyBearing = Math.rint(enemyBearing);
         this.enemyDistance = Math.rint(enemyDistance);
         this.gunHeat = Math.rint(gunHeat);
+        this.gunHeading = Math.rint(gunHeading);
+        this.radarHeading = Math.rint(radarHeading);
     }
 
     // Getters and setters for each field go here
 
     public double[] toArray() {
-        return new double[]{x, y, heading, velocity, energy, enemyBearing, enemyDistance, gunHeat};
+        return new double[]{x, y, heading, velocity, energy, enemyBearing, enemyDistance, gunHeat, gunHeading, radarHeading};
     }
 
     @Override

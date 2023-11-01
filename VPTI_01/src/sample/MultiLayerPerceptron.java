@@ -93,7 +93,7 @@ public class MultiLayerPerceptron implements Cloneable
 			}
 		}
 		
-		double[] values = new double[2048];
+		double[] values = new double[2560];
 
 		// Get output
 		for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
