@@ -353,7 +353,7 @@ public class QLearningRobot extends AdvancedRobot {
     }
     
     public void onHitWall(HitWallEvent e) {
-    	reward += -50.0;
+    	reward += -75.0;
         //moveDirection = -moveDirection;
     }
     
@@ -362,22 +362,22 @@ public class QLearningRobot extends AdvancedRobot {
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
-    	reward += -40.0;
+    	reward += -50.0;
     }
 
     public void onBulletMissed(BulletMissedEvent e) {
-    	reward += -5;
+    	reward += -10;
     }
 
     public void onBulletHit(BulletHitEvent e) {
-    	reward += 40;
+    	reward += 25;
         if(e.getEnergy() <= 0){
-            reward += 120;
+            reward += 150;
         }
     }
 
     public void onRobotDeathEvent(RobotDeathEvent e){
-        reward += 80;
+        reward += 100;
     }
 
     public void onStatus(StatusEvent e) {
@@ -410,7 +410,7 @@ public class QLearningRobot extends AdvancedRobot {
 
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             out.println("We have reached the threshold");
-            reward -= 15;
+            reward -= 5;
 
             if (this.getDistanceRemaining() < THRESHOLD) {
                 
