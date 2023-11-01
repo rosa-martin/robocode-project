@@ -17,7 +17,7 @@ public class RobocodeRunner {
 
 	public static void main(String[] args) throws IOException {
 		String nazevTridyMehoRobota = "QLearningRobot";
-		String seznamProtivniku = "RL_DeadlyTurttle, RL_NN_Robot, GeneticTankBlueprint, SuperTrackFire";
+		String seznamProtivniku = "RL_DeadlyTurttle, GeneticTankBlueprint, SuperTrackFire";
 
 		runRobocode(nazevTridyMehoRobota, seznamProtivniku);
 	}

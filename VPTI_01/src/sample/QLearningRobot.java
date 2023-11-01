@@ -26,7 +26,7 @@ public class QLearningRobot extends AdvancedRobot {
     private double[] currentQValues = new double[Action.values().length];
     private int action;
 
-    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 2*NUM_OF_INPUTS, 4*NUM_OF_INPUTS, 8*NUM_OF_INPUTS, 16*NUM_OF_INPUTS, 32*NUM_OF_INPUTS, 64*NUM_OF_INPUTS, 128*NUM_OF_INPUTS, 256*NUM_OF_INPUTS, NUM_OF_OUTPUTS};
+    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 256*NUM_OF_INPUTS, NUM_OF_OUTPUTS};
 
     private double enemyBearing;
     private double enemyDistance;
@@ -330,7 +330,7 @@ public class QLearningRobot extends AdvancedRobot {
 
 		double energy = e.getStatus().getEnergy();
 		int enemy_count = e.getStatus().getOthers();
-		int max_enemies = 5;
+		int max_enemies = 4;
 		int enemies_dead = max_enemies - enemy_count;
 
 		if (energy > 0 && enemies_dead > 0)

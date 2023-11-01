@@ -43,7 +43,7 @@ public class RL_NN_Robot extends AdvancedRobot {
 
         final double alpha = 0.1;
         final double gamma = 0.9;
-        boolean explore = true;
+        boolean explore = false;
         boolean greedy = true;
         double q_present_double, q_next_double;
 
