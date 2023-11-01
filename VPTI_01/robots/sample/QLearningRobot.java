@@ -144,14 +144,14 @@ public class QLearningRobot extends AdvancedRobot {
             case FIRE:
                 if (enemyDistance <= 30)
                 {
-                    fire(5);
+                    fire(8);
                 }
                 else if (enemyDistance < 30 && enemyDistance < 80)
                 {
-                    fire(3);
+                    fire(5);
                 }
                 else{
-                    fire(1); // Fire a bullet with power 1
+                    fire(3); // Fire a bullet with power 3
                 }
                 break;
         }
@@ -199,7 +199,7 @@ public class QLearningRobot extends AdvancedRobot {
                 action = rand.nextInt(NUM_OF_OUTPUTS);
             }
             else {
-                action = chooseAction(currentQValues);
+                action = chooseAction(predict(currentState));
             }
 
             out.println("CHOSEN ACTION: "+action);
@@ -238,31 +238,31 @@ public class QLearningRobot extends AdvancedRobot {
             }     
 
             // Save everything, when we stop the program -- NOT WORKING YET
-            Signal.handle(new Signal("INT"), new SignalHandler () {
-            public void handle(Signal sig) {
-                out.println("Received SIGINT signal. Terminating...");
-                
-                PrintStream w = null;
-                try {
-                    w = new PrintStream(new RobocodeFileOutputStream(getDataFile("q_map.dat")));
-                    for(Map.Entry<String, double[]> entry: QLearningRobot.trainingSet.entrySet()) {
-                        w.println(entry.getKey()+":"+entry.getValue());
-                    }
-                    if (w.checkError()) {
-                        out.println("Error reading the training set");
-                    }
-                } catch (IOException e) {
-                    out.println("IOException trying to write: ");
-                    e.printStackTrace(out);
-                } finally {
-                    if (w != null) {
-                        w.close();
-                    }
-                }
-                // Force exit anyway
-                System.exit(1);
-            }
-          });
+            //Signal.handle(new Signal("INT"), new SignalHandler () {
+            //public void handle(Signal sig) {
+            //    out.println("Received SIGINT signal. Terminating...");
+            //    
+            //    PrintStream w = null;
+            //    try {
+            //        w = new PrintStream(new RobocodeFileOutputStream(getDataFile("q_map.dat")));
+            //        for(Map.Entry<String, double[]> entry: QLearningRobot.trainingSet.entrySet()) {
+            //            w.println(entry.getKey()+":"+entry.getValue());
+            //        }
+            //        if (w.checkError()) {
+            //            out.println("Error reading the training set");
+            //        }
+            //    } catch (IOException e) {
+            //        out.println("IOException trying to write: ");
+            //        e.printStackTrace(out);
+            //    } finally {
+            //        if (w != null) {
+            //            w.close();
+            //        }
+            //    }
+            //    // Force exit anyway
+            //    System.exit(1);
+            //}
+          //});
         }
     }
 
@@ -279,7 +279,7 @@ public class QLearningRobot extends AdvancedRobot {
 		double power = 3.0;
 
 		if(getOthers()==1) {
-			power = 2;
+			power = 3;
 			if(dist<30&&dist>=15) {power = 2.5;};
 			if(dist<15) {power = 3;};
 		}
@@ -323,14 +323,14 @@ public class QLearningRobot extends AdvancedRobot {
 		setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
 //		***********************************************************
 //		***********************************************************
-		/*
+		
 		fire(power);
 		numFire++;
 		if(numFire!=2) {
 			scan();
 		}
 		numFire = 0;
-		setTurnRadarRight(360);*/
+		setTurnRadarRight(360);
     }
     
 
@@ -364,15 +364,15 @@ public class QLearningRobot extends AdvancedRobot {
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
-    	reward += -15.0;
+    	reward += -40.0;
     }
 
     public void onBulletMissed(BulletMissedEvent e) {
-    	reward += -15;
+    	reward += -5;
     }
 
     public void onBulletHit(BulletHitEvent e) {
-    	reward += 80;
+    	reward += 40;
         if(e.getEnergy() <= 0){
             reward += 120;
         }
@@ -389,22 +389,22 @@ public class QLearningRobot extends AdvancedRobot {
 		int max_enemies = 4;
 		int enemies_dead = max_enemies - enemy_count;
 
-		if (energy > 0 && enemies_dead > 0)
-		{
-			reward += 15;
-		}
-		else if (energy > 0 && enemies_dead > 1)
-		{
-			reward += 30;
-		}
-		else if (energy > 0 && enemies_dead > 2)
-		{
-			reward += 60;
-		}
-		else if (energy > 0 && enemies_dead > 3)
-		{
-			reward += 120;
-		}
+		//if (energy > 0 && enemies_dead > 0)
+		//{
+		//	reward += 15;
+		//}
+		//else if (energy > 0 && enemies_dead > 1)
+		//{
+		//	reward += 30;
+		//}
+		//else if (energy > 0 && enemies_dead > 2)
+		//{
+		//	reward += 60;
+		//}
+		//else if (energy > 0 && enemies_dead > 3)
+		//{
+		//	reward += 120;
+		//}
 
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             out.println("We have reached the threshold");
