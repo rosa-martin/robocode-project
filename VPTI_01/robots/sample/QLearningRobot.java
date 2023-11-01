@@ -157,7 +157,7 @@ public class QLearningRobot extends AdvancedRobot {
             if(!this.trainingSet.containsKey(stringifyField(currentState.toArray()))) {
 		    	this.trainingSet.put(stringifyField(currentState.toArray()), new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
 			}
-            out.println("STATE OF THE Q TABLE:");
+            //out.println("STATE OF THE Q TABLE:");
             //printMap(this.trainingSet);
         
             out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
@@ -169,7 +169,7 @@ public class QLearningRobot extends AdvancedRobot {
             
             // If exploring, we take a random action.
             if (Math.random() < EPSILON) { 
-                action = rand.nextInt(Action.values().length);
+                action = chooseAction(predict(currentState));
             }
             else {
                 action = chooseAction(currentQValues);
@@ -317,6 +317,9 @@ public class QLearningRobot extends AdvancedRobot {
 
     public void onBulletHit(BulletHitEvent e) {
     	reward += 80;
+        if(e.getEnergy() <= 0){
+            reward += 120;
+        }
     }
 
     public void onRobotDeathEvent(RobotDeathEvent e){
