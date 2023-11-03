@@ -201,20 +201,23 @@ public class MultiLayerPerceptron implements Cloneable
 		}	
 		
 		// Calcoliamo l'errore 
-		error = 0.0;
+		error = huberLoss(new_output, output, 1.0);
 		
-		for(i = 0; i < output.length; i++)
-		{
-			// MSE
-			error += Math.pow(new_output[i] - output[i], 2);
-			
-			//System.out.println(output[i]+" "+new_output[i]);
-		}
-
-		error = error / output.length;
 		return error;
 	}
 	
+	public static double huberLoss(double[] y, double[] y_pred, double delta) {
+		double error = 0;
+		for (int i = 0; i < y.length; i++) {
+			double diff = y[i] - y_pred[i];
+			if (Math.abs(diff) <= delta) {
+				error += 0.5 * diff * diff;
+			} else {
+				error += delta * (Math.abs(diff) - 0.5 * delta);
+			}
+		}
+		return error;
+	}
 	
 	/**
 	 * Salva una rete MLP su file
