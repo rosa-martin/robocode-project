@@ -98,22 +98,34 @@ public class MultiLayerPerceptron implements Cloneable
 		{
 			output[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
 		}
-		for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
-		{
-			output[i] = softmax(output[i], output);
-		}
+		
+		output = softmax(output);
 		
 		return output;
 	}
 	
-	public static double softmax(double input, double[] neuronValues) {
+	private static double getMaxValue(double[] values) {
+        double maxVal = 0.0;
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] > maxVal) {
+                maxVal = values[i];
+            }
+        }
+        return maxVal;
+    }
+
+	public static double[] softmax(double[] neuronValues) {
         double total = 0;
+		double[] eXs = new double[neuronValues.length];
 
 		for (int i = 0; i < neuronValues.length; i++) {
-			total += Math.exp(neuronValues[i]);
+			total += Math.exp(neuronValues[i] - getMaxValue(neuronValues));
+		}
+		for (int i = 0; i < neuronValues.length; i++){
+			eXs[i] = (Math.exp(neuronValues[i] - getMaxValue(neuronValues))) / total;
 		}
 
-        return Math.exp(input) / total;
+        return eXs;
     }
 
 	public void copyWeights(MultiLayerPerceptron dest) {

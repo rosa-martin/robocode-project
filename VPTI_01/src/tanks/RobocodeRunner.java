@@ -7,12 +7,12 @@ import java.nio.file.StandardCopyOption;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
+
 import robocode.BattleResults;
 import robocode.control.BattleSpecification;
 import robocode.control.BattlefieldSpecification;
 import robocode.control.RobocodeEngine;
 import robocode.control.RobotSpecification;
-
 public class RobocodeRunner {
 	public static int NUM_OF_ROUNDS = 100000;
 

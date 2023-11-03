@@ -1,5 +1,6 @@
 package sample;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -44,6 +45,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
 
     private MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new HeavysideTransfer());
     private MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new HeavysideTransfer());
+    private ArrayList<Sample> samples = new ArrayList<Sample>();
 
     //private static HashMap<String, double[]> trainingSet = new HashMap<String, double[]>();
     Random rand = new Random();
@@ -115,9 +117,11 @@ public class QLearningRobotV2 extends AdvancedRobot {
         Action action = Action.fromIndex(actionIndex);
         switch (action) {
             case MOVE_FORWARD:
+                /*
                 if(getScannedRobotEvents().size()==0) {
 				    setTurnRadarRight(360);
 			    }
+                */
                 setAhead(40); // Move forward by 40 pixels
                 break;
             case MOVE_BACKWARD:
@@ -154,9 +158,6 @@ public class QLearningRobotV2 extends AdvancedRobot {
                 setTurnRadarLeftRadians(getRadarTurnRemainingRadians());    // Lock the radar
                 break;
             case DO_NOTHING:
-                if(getScannedRobotEvents().size()==0) {
-				    setTurnRadarRight(360);
-			    }
                 doNothing(); // Do nothing
                 break;
             case FIRE:
@@ -193,9 +194,9 @@ public class QLearningRobotV2 extends AdvancedRobot {
     }
 
 public void run() {
-    State currentState = getCurrentState();
     int episode = 1;
     for(;;) {
+        State currentState = getCurrentState();
         currentQValues = mainNetwork.execute(currentState.toArray());
         out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
         
@@ -215,14 +216,14 @@ public void run() {
         for (int i = 0; i < NUM_OF_OUTPUTS; i++) {
             currentQValues[i] = currentQValues[i] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[i]);
         }
-        for (int i = 0; i < NUM_OF_OUTPUTS; i++) {
-            currentQValues[i] = MultiLayerPerceptron.softmax(currentQValues[i], currentQValues);
-        }
+
+        currentQValues = MultiLayerPerceptron.softmax(currentQValues);
+        
         out.println("UPDATED Q VALUES: "+stringifyField(currentQValues));
         
         double error = mainNetwork.backPropagate(currentState.toArray(), currentQValues);
         out.println("HUBER LOSS: "+error);
-        
+        samples.add(new Sample(currentState, action, currentReward, nextState));
         currentState = nextState;
         reward = 0;
         currentReward = 0;
@@ -280,7 +281,7 @@ public void run() {
 		setTurnRadarRightRadians(
 		    Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
 		setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
-        setTurnRadarRight(360);
+        //setTurnRadarRight(360);
 //		***********************************************************
 //		***********************************************************
 		/*
@@ -416,5 +417,51 @@ class State {
     @Override
     public String toString() {
         return QLearningRobot.stringifyField(this.toArray());
+    }
+}
+
+class Sample {
+    private State currentState;
+    private int action;
+    private double reward;
+    private State nexState;
+    
+    public State getCurrentState() {
+        return currentState;
+    }
+
+    public void setCurrentState(State currentState) {
+        this.currentState = currentState;
+    }
+
+    public int getAction() {
+        return action;
+    }
+
+    public void setAction(int action) {
+        this.action = action;
+    }
+
+    public double getReward() {
+        return reward;
+    }
+
+    public void setReward(int reward) {
+        this.reward = reward;
+    }
+
+    public State getNexState() {
+        return nexState;
+    }
+
+    public void setNexState(State nexState) {
+        this.nexState = nexState;
+    }
+
+    public Sample(State currentState, int action, double currentReward, State nexState) {
+        this.currentState = currentState;
+        this.action = action;
+        this.reward = currentReward;
+        this.nexState = nexState;
     }
 }
