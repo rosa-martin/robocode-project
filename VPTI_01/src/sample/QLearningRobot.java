@@ -194,10 +194,14 @@ public class QLearningRobot extends AdvancedRobot {
             
             // If exploring, we take a random action.
             if (Math.random() < EPSILON) { 
+                out.println("TAKING RANDOM ACTION");
                 action = rand.nextInt(NUM_OF_OUTPUTS);
             }
             else {
-                action = chooseAction(predict(currentState));
+                out.println("TAKING ACTION FROM THE NEURAL NETWORK");
+                double[] pred_qs = predict(currentState);
+                out.println("PREDICTED Q VALUES: "+stringifyField(pred_qs));
+                action = chooseAction(pred_qs);
             }
 
             out.println("CHOSEN ACTION: "+action);
@@ -214,10 +218,8 @@ public class QLearningRobot extends AdvancedRobot {
             double maxQ = getMaxQValue(trainingSet.get(stringifyField(nextState.toArray())));
 
             currentQValues[action] = currentQValues[action] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[action]);
-
-            for(int i = 0; i < currentQValues.length; i++){
-                currentQValues[i] = MultiLayerPerceptron.softmax(currentQValues[i], currentQValues);
-            }
+            currentQValues[action] = MultiLayerPerceptron.softmax(currentQValues[action], currentQValues);
+            
             out.println("UPDATED Q VALUES: "+stringifyField(currentQValues));
             trainingSet.put(stringifyField(currentState.toArray()), currentQValues);
             //out.println("STATE OF THE Q TABLE:");
