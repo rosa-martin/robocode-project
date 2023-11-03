@@ -19,7 +19,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
 
     private static final int MAX_EPISODES = RobocodeRunner.NUM_OF_ROUNDS;       // Number of rounds
     private static int episode = 0;                     // Number of the current episode
-    private static final double GAMMA = 0.75;           // How important is the next estimated reward?
+    private static final double GAMMA = 0.9;            // How important is the next estimated reward?
     private static final double ALPHA = 0.1;            // How fast shall we converge? -- The learning rate
     private static double EPS_START = 0.9;              // Maximal (Starting) Exploration rate
     private static double EPS_END = 0.05;               // Minimal (Ending) Exploration rate
@@ -194,7 +194,6 @@ public class QLearningRobotV2 extends AdvancedRobot {
     }
 
 public void run() {
-    int episode = 1;
     for(;;) {
         State currentState = getCurrentState();
         currentQValues = mainNetwork.execute(currentState.toArray());
@@ -213,17 +212,14 @@ public void run() {
 
         double maxQ = getMaxQValue(target);
         
-        for (int i = 0; i < NUM_OF_OUTPUTS; i++) {
-            currentQValues[i] = currentQValues[i] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[i]);
-        }
+        currentQValues[action] = currentQValues[action] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[action]);
 
         currentQValues = MultiLayerPerceptron.softmax(currentQValues);
-        
         out.println("UPDATED Q VALUES: "+stringifyField(currentQValues));
         
         double error = mainNetwork.backPropagate(currentState.toArray(), currentQValues);
         out.println("HUBER LOSS: "+error);
-        samples.add(new Sample(currentState, action, currentReward, nextState));
+        //samples.add(new Sample(currentState, action, currentReward, nextState));
         currentState = nextState;
         reward = 0;
         currentReward = 0;
