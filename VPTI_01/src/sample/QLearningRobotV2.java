@@ -21,37 +21,52 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private static int episode = 0;                     // Number of the current episode
     private static final double GAMMA = 0.9;            // How important is the next estimated reward?
     private static final double ALPHA = 0.1;            // How fast shall we converge? -- The learning rate
-    private static double EPS_START = 0.9;              // Maximal (Starting) Exploration rate
+    private static double EPS_START = 1.0;              // Maximal (Starting) Exploration rate
     private static double EPS_END = 0.05;               // Minimal (Ending) Exploration rate
     private static int EPS_DECAY = 1000;                // The exploration decay rate => We are focusing on exploitation more that exploration.
     private static int STEPS_DONE = 0;                  // How many times we have made a decision
 
-    private static final int NUM_OF_INPUTS = 10;
+    private static final int NUM_OF_INPUTS = 15;
     private static final int NUM_OF_OUTPUTS = Action.values().length;
     private final static int HEIGHT = 600;
     private final static int WIDTH = 800;
     private final static double THRESHOLD = 50.0;
-    private final static int TARGET_UPDATE_FREQ = 25;
+    private final static int TARGET_UPDATE_FREQ = 200;
 
+    private double[] lastQValues = new double[NUM_OF_OUTPUTS];
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int action;
 
-    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 16, 32, 64, 128, 256, 512, 1024, NUM_OF_OUTPUTS};
+    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, 1024, NUM_OF_OUTPUTS};
 
     private double enemyBearing;
+    private double enemyHeading;
     private double enemyDistance;
+    private double enemyX;
+    private double enemyY;
+    private double enemyVelocity;
     private static int numFire = 0;
-    private double lastEnergy = 100.0;
 
-    private MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new HeavysideTransfer());
-    private MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new HeavysideTransfer());
+    private static double hitWallPen = 0.0;
+	private static double hitByBullet = 0.0;
+	private static double hitEnemyPen = 0.0;
+    private static double bulletMissedPen = 0.0;
+    private static double scannedRobotPen = 0.0;
+    private static double bulletHitPen = 0.0;
+    private static double robotDeathPen = 0.0;
+
+    private MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new ReLU());
+    private MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new ReLU());
     private ArrayList<Sample> samples = new ArrayList<Sample>();
 
     //private static HashMap<String, double[]> trainingSet = new HashMap<String, double[]>();
     Random rand = new Random();
 
-    private int reward;
+    State currentState;
+    State lastState;
     private double currentReward;
+    private double lastReward;
+    private double lastEnergy = 100.0;
 
 
     public static enum Action {
@@ -65,8 +80,9 @@ public class QLearningRobotV2 extends AdvancedRobot {
         TURN_GUN_RIGHT, // Turn gun right
         SLOW_DOWN, // Slow down
         FASTER, // Increase the velocity
-        LOCK_THE_RADAR, // Lock the radar
+        SPIN_RADAR, // Do a radar spin
         DO_NOTHING, // Do nothing
+        BATCH_FIRE, // Fire a batch of bullets
         FIRE; // Fire
     
         public int getIndex() {
@@ -117,17 +133,9 @@ public class QLearningRobotV2 extends AdvancedRobot {
         Action action = Action.fromIndex(actionIndex);
         switch (action) {
             case MOVE_FORWARD:
-                /*
-                if(getScannedRobotEvents().size()==0) {
-				    setTurnRadarRight(360);
-			    }
-                */
                 setAhead(40); // Move forward by 40 pixels
                 break;
             case MOVE_BACKWARD:
-                if(getScannedRobotEvents().size()==0) {
-				    setTurnRadarRight(360);
-			    }
                 setBack(40); // Move backward by 40 pixels
                 break;
             case TURN_LEFT:
@@ -154,8 +162,8 @@ public class QLearningRobotV2 extends AdvancedRobot {
             case FASTER:
                 setMaxVelocity(this.getVelocity()*2); // Increase the velocity
                 break;
-            case LOCK_THE_RADAR:
-                setTurnRadarLeftRadians(getRadarTurnRemainingRadians());    // Lock the radar
+            case SPIN_RADAR:
+                setTurnRadarRight(360); // Do a radar spin
                 break;
             case DO_NOTHING:
                 doNothing(); // Do nothing
@@ -163,11 +171,25 @@ public class QLearningRobotV2 extends AdvancedRobot {
             case FIRE:
                 if (enemyDistance <= 80)
                 {
-                    fire(Rules.MAX_BULLET_POWER); // Fire a bullet with maximal power because the enemy is nearby
+                    fire(Rules.MAX_BULLET_POWER); // Fire a huge bullet
                 }
                 else
                 {
                     fire(Rules.MAX_BULLET_POWER/2);
+                }
+                break;
+            case BATCH_FIRE:
+                if (enemyDistance <= 80)
+                {
+                    for (int i = 0; i < 3; i++){
+                        fire(Rules.MAX_BULLET_POWER);   // Fire a batch of heavy bullets
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < 3; i++){
+                        fire(Rules.MAX_BULLET_POWER/2); // Fire a batch of bullets
+                    }
                 }
                 break;
         }
@@ -194,41 +216,12 @@ public class QLearningRobotV2 extends AdvancedRobot {
     }
 
 public void run() {
-    for(;;) {
-        State currentState = getCurrentState();
-        currentQValues = mainNetwork.execute(currentState.toArray());
-        out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
-        
-        chooseAction(currentQValues);
-        executeAction(action);
-        out.println("ACTION: "+action);
-        
-        currentReward = reward;
-        out.println("REWARD: "+currentReward);
-
-        State nextState = getCurrentState();
-        double[] target = targetNetwork.execute(nextState.toArray());
-        out.println("TARGET Q VALUES: "+stringifyField(target));
-
-        double maxQ = getMaxQValue(target);
-        
-        currentQValues[action] = currentQValues[action] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[action]);
-
-        currentQValues = MultiLayerPerceptron.softmax(currentQValues);
-        out.println("UPDATED Q VALUES: "+stringifyField(currentQValues));
-        
-        double error = mainNetwork.backPropagate(currentState.toArray(), currentQValues);
-        out.println("HUBER LOSS: "+error);
-        //samples.add(new Sample(currentState, action, currentReward, nextState));
-        currentState = nextState;
-        reward = 0;
-        currentReward = 0;
-
-        if (episode % TARGET_UPDATE_FREQ == 0) {
-            out.println("COPYING WEIGHTS TO TARGET NETWORK");
-            mainNetwork.copyWeights(targetNetwork);
+    if (lastState == null) {
+            out.println("INITIAL STATE");
+            lastState = getCurrentState();
         }
-        episode ++;
+    for(;;) {
+        executeAction(action);
     }
 }
 
@@ -238,56 +231,47 @@ public void run() {
     
         // Get the distance to the scanned robot
         this.enemyDistance = e.getDistance();
-        
-        reward += 20;
+        this.enemyHeading = e.getHeading();
+        scannedRobotPen = 1;
 	
 //		************************************************************
-//		*******Source: http://robowiki.net/wiki/Linear_Targeting ***
-		double myX = getX();
-		double myY = getY();
-		double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
-		double enemyX = getX() + e.getDistance() * Math.sin(absoluteBearing);
-		double enemyY = getY() + e.getDistance() * Math.cos(absoluteBearing);
-		double enemyHeading = e.getHeadingRadians();
-		double enemyVelocity = e.getVelocity();
-		 
-		 
-		double deltaTime = 0;
-		double battleFieldHeight = getBattleFieldHeight(), 
-		       battleFieldWidth = getBattleFieldWidth();
-		double predictedX = enemyX, predictedY = enemyY;
-		while((++deltaTime) * (20.0 - 3.0 * Rules.MAX_BULLET_POWER/2) < 
-		      Point2D.Double.distance(myX, myY, predictedX, predictedY)){		
-			predictedX += Math.sin(enemyHeading) * enemyVelocity;	
-			predictedY += Math.cos(enemyHeading) * enemyVelocity;
-			if(	predictedX < 18.0 
-				|| predictedY < 18.0
-				|| predictedX > battleFieldWidth - 18.0
-				|| predictedY > battleFieldHeight - 18.0){
-				predictedX = Math.min(Math.max(18.0, predictedX), 
-		                    battleFieldWidth - 18.0);	
-				predictedY = Math.min(Math.max(18.0, predictedY), 
-		                    battleFieldHeight - 18.0);
-				break;
-			}
-		}
-		double theta = Utils.normalAbsoluteAngle(Math.atan2(
-		    predictedX - getX(), predictedY - getY()));
-		 
-		setTurnRadarRightRadians(
-		    Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
-		setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
-        //setTurnRadarRight(360);
-//		***********************************************************
-//		***********************************************************
-		/*
-		fire(power);
-		numFire++;
-		if(numFire!=2) {
-			scan();
-		}
-		numFire = 0;
-		setTurnRadarRight(360);*/
+//		*******Source: http://robowiki.net/wiki/Linear_Targeting
+        double bulletPower = Math.min(3.0,getEnergy());
+        double myX = getX();
+        double myY = getY();
+        double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
+        double enemyX = getX() + e.getDistance() * Math.sin(absoluteBearing);
+        double enemyY = getY() + e.getDistance() * Math.cos(absoluteBearing);
+        double enemyHeading = e.getHeadingRadians();
+        double enemyVelocity = e.getVelocity();
+
+
+        double deltaTime = 0;
+        double battleFieldHeight = getBattleFieldHeight(), 
+            battleFieldWidth = getBattleFieldWidth();
+        double predictedX = enemyX, predictedY = enemyY;
+        while((++deltaTime) * (20.0 - 3.0 * bulletPower) < 
+            Point2D.Double.distance(myX, myY, predictedX, predictedY)){		
+            predictedX += Math.sin(enemyHeading) * enemyVelocity;	
+            predictedY += Math.cos(enemyHeading) * enemyVelocity;
+            if(	predictedX < 18.0 
+                || predictedY < 18.0
+                || predictedX > battleFieldWidth - 18.0
+                || predictedY > battleFieldHeight - 18.0){
+                predictedX = Math.min(Math.max(18.0, predictedX), 
+                            battleFieldWidth - 18.0);	
+                predictedY = Math.min(Math.max(18.0, predictedY), 
+                            battleFieldHeight - 18.0);
+                break;
+            }
+        }
+        double theta = Utils.normalAbsoluteAngle(Math.atan2(
+            predictedX - getX(), predictedY - getY()));
+
+        setTurnRadarRightRadians(
+            Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
+        setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
+        //fire(bulletPower);
     }
     
 
@@ -301,81 +285,136 @@ public void run() {
         double ourGunHeat = getGunHeat();
         double ourGunHeading = getGunHeading();
         double ourRadarHeading = getRadarHeading();
-        
+        double enemyCount = getOthers();
     
         // Get the enemy's bearing and distance from our robot
         double enemyBearing = this.enemyBearing;
         double enemyDistance = this.enemyDistance;
     
         // Return a new State object with these values
-        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, enemyBearing, enemyDistance, ourGunHeat, ourGunHeading, ourRadarHeading);
+        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, enemyBearing, enemyDistance, ourGunHeat, ourGunHeading, ourRadarHeading, enemyCount, enemyX, enemyY, enemyHeading, enemyVelocity);
     }
     
     public void onHitWall(HitWallEvent e) {
-    	reward += -75.0;
+    	hitWallPen = -5.0;
         //moveDirection = -moveDirection;
     }
     
     public void onHitRobot(HitRobotEvent e) {
-    	reward += -10.0;
+    	hitEnemyPen = -1.5;
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
-    	reward += -25.0;
+    	hitByBullet = -3.0;
     }
 
     public void onBulletMissed(BulletMissedEvent e) {
-    	reward += -10;
+    	bulletMissedPen = -0.5;
     }
 
     public void onBulletHit(BulletHitEvent e) {
-    	reward += 50;
+    	bulletHitPen = 3;
         if(e.getEnergy() <= 0){
-            reward += 150;
+            bulletHitPen = 8;
         }
     }
 
     public void onRobotDeathEvent(RobotDeathEvent e){
-        reward += 100;
+        robotDeathPen = 2.5;
     }
 
     public void onStatus(StatusEvent e) {
 		double energy = e.getStatus().getEnergy();
 		int enemy_count = e.getStatus().getOthers();
-		int max_enemies = 4;
+		int max_enemies = 3;
 		int enemies_dead = max_enemies - enemy_count;
 
         if (lastEnergy > energy)
         {
-            reward += -15;
+            currentReward += -1.5;
         }
-
-		if (energy > 0 && enemies_dead > 0)
-		{
-			reward += 15;
+		if(hitWallPen!=0.0) {
+			currentReward += hitWallPen;
+			hitWallPen = 0.0;
 		}
-		else if (energy > 0 && enemies_dead > 1)
+		if(hitEnemyPen!=0.0) {
+			currentReward += hitEnemyPen;
+			hitEnemyPen = 0.0;
+		}
+		if(hitByBullet!=0.0) {
+			currentReward += hitByBullet;
+			hitByBullet = 0.0;
+		}
+        if(bulletMissedPen!=0.0) {
+			currentReward += bulletMissedPen;
+			bulletMissedPen = 0.0;
+		}
+        if(scannedRobotPen!=0.0) {
+			currentReward += scannedRobotPen;
+			scannedRobotPen = 0.0;
+		}
+        if(bulletHitPen!=0.0) {
+			currentReward += bulletHitPen;
+			bulletHitPen = 0.0;
+		}
+        if(robotDeathPen!=0.0) {
+			currentReward += robotDeathPen;
+			robotDeathPen = 0.0;
+		}
+        /* 
+		if (energy > 0 && enemies_dead > 0)
 		{
 			reward += 30;
 		}
-		else if (energy > 0 && enemies_dead > 2)
+		else if (energy > 0 && enemies_dead > 1)
 		{
 			reward += 60;
 		}
-		else if (energy > 0 && enemies_dead > 3)
-		{
-			reward += 120;
-		}
-
+        */
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             //out.println("We have reached the threshold");
             //reward -= 5;
             if (this.getDistanceRemaining() < THRESHOLD) {
                 //out.println("We are moving towards the wall.");
-                reward -= 30;
+                currentReward += -0.5;
             }
-        } 
+        }
+        
+        out.println("CURRENT STATE: "+stringifyField(lastState.toArray()));
+        lastQValues = mainNetwork.execute(lastState.toArray());
+        out.println("CURRENT Q VALUES: "+stringifyField(lastQValues));
+        
+        action = chooseAction(lastQValues);
+
+        out.println("ACTION: "+action); 
+        out.println("REWARD: "+lastReward);
+
+        currentState = getCurrentState();
+        out.println("NEXT STATE: "+stringifyField(currentState.toArray()));
+        currentQValues = targetNetwork.execute(currentState.toArray());
+        out.println("TARGET Q VALUES: "+stringifyField(currentQValues));
+
+        double maxQ = getMaxQValue(currentQValues);
+        
+        lastQValues[action] = lastQValues[action] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[action]);
+
+        //currentQValues = MultiLayerPerceptron.softmax(currentQValues);
+        out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
+        
+        double error = mainNetwork.backPropagate(lastState.toArray(), lastQValues);
+        out.println("HUBER LOSS: "+error);
+        //samples.add(new Sample(currentState, action, currentReward, nextState));
+
+        if (episode % TARGET_UPDATE_FREQ == 0) {
+            out.println("COPYING WEIGHTS TO TARGET NETWORK");
+            mainNetwork.copyWeights(targetNetwork);
+        }
+        episode ++;
+        
         lastEnergy = energy;
+		lastState = currentState;
+		lastReward = currentReward;
+		currentReward = 0.0;
 	}
 }
 
@@ -390,8 +429,13 @@ class State {
     private double gunHeat; //heat of gun
     private double gunHeading; // The heading of the gun in degrees
     private double radarHeading; // The heading of the radar in degrees
+    private double enemyCount;
+    private double enemyX;
+    private double enemyY;
+    private double enemyHeading;
+    private double enemyVelocity;
 
-    public State(double x, double y, double heading, double velocity, double energy, double enemyBearing, double enemyDistance, double gunHeat, double gunHeading, double radarHeading) {
+    public State(double x, double y, double heading, double velocity, double energy, double enemyBearing, double enemyDistance, double gunHeat, double gunHeading, double radarHeading, double enemyCount, double enemyX, double enemyY, double enemyHeading, double enemyVelocity) {
         this.x = Math.rint(x);
         this.y = Math.rint(y);
         this.heading = Math.rint(heading);
@@ -402,12 +446,17 @@ class State {
         this.gunHeat = Math.rint(gunHeat);
         this.gunHeading = Math.rint(gunHeading);
         this.radarHeading = Math.rint(radarHeading);
+        this.enemyCount = Math.rint(enemyCount);
+        this.enemyX = Math.rint(enemyX);
+        this.enemyY = Math.rint(enemyY);
+        this.enemyHeading = Math.rint(enemyHeading);
+        this.enemyVelocity = Math.rint(enemyVelocity);
     }
 
     // Getters and setters for each field go here
 
     public double[] toArray() {
-        return new double[]{x, y, heading, velocity, energy, enemyBearing, enemyDistance, gunHeat, gunHeading, radarHeading};
+        return new double[]{x, y, heading, velocity, energy, enemyBearing, enemyDistance, gunHeat, gunHeading, radarHeading, enemyCount, enemyX, enemyY, enemyHeading, enemyVelocity};
     }
 
     @Override
