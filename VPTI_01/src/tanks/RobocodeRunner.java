@@ -14,9 +14,10 @@ import robocode.control.RobocodeEngine;
 import robocode.control.RobotSpecification;
 
 public class RobocodeRunner {
+	public static int NUM_OF_ROUNDS = 1000;
 
 	public static void main(String[] args) throws IOException {
-		String nazevTridyMehoRobota = "QLearningRobot";
+		String nazevTridyMehoRobota = "QLearningRobotV2";
 		String seznamProtivniku = "RL_DeadlyTurttle, GeneticTankBlueprint, SuperTrackFire";
 
 		runRobocode(nazevTridyMehoRobota, seznamProtivniku);
@@ -71,7 +72,7 @@ public class RobocodeRunner {
 
 		// Setup the battle specification
 
-		int numberOfRounds = 1000;
+		int numberOfRounds = NUM_OF_ROUNDS;
 		BattlefieldSpecification battlefield = new BattlefieldSpecification(800, 600); // 800x600
 		// RobotSpecification[] selectedRobots =
 		// engine.getLocalRepository("sample.Corners, sample.MujRobot");

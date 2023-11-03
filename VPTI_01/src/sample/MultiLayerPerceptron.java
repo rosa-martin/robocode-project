@@ -119,6 +119,19 @@ public class MultiLayerPerceptron implements Cloneable
 
         return Math.exp(input) / total;
     }
+
+	public void copyWeights(MultiLayerPerceptron dest) {
+		for(int k = 1; k < fLayers.length; k++)
+		{
+			for(int i = 0; i < fLayers[k].Length; i++)
+			{
+				dest.fLayers[k].Neurons[i].Weights = fLayers[k].Neurons[i].Weights;
+				dest.fLayers[k].Neurons[i].Bias = fLayers[k].Neurons[i].Bias;
+				dest.fLayers[k].Neurons[i].Delta = fLayers[k].Neurons[i].Delta;
+				dest.fLayers[k].Neurons[i].Value = fLayers[k].Neurons[i].Value;
+			}
+		}
+	}
 	
 	/**
 	 * Algoritmo di backpropagation per il learning assistito
