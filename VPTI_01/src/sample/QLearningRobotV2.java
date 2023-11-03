@@ -17,7 +17,7 @@ import java.io.PrintStream;
 public class QLearningRobotV2 extends AdvancedRobot {
 
     private static final int MAX_EPISODES = RobocodeRunner.NUM_OF_ROUNDS;       // Number of rounds
-    private static int episode = 1;                     // Number of the current episode
+    private static int episode = 0;                     // Number of the current episode
     private static final double GAMMA = 0.75;           // How important is the next estimated reward?
     private static final double ALPHA = 0.1;            // How fast shall we converge? -- The learning rate
     private static double EPS_START = 0.9;              // Maximal (Starting) Exploration rate
@@ -35,7 +35,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int action;
 
-    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 256*NUM_OF_INPUTS, NUM_OF_OUTPUTS};
+    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 16, 32, 64, 128, 256, 512, 1024, NUM_OF_OUTPUTS};
 
     private double enemyBearing;
     private double enemyDistance;
@@ -121,6 +121,9 @@ public class QLearningRobotV2 extends AdvancedRobot {
                 setAhead(40); // Move forward by 40 pixels
                 break;
             case MOVE_BACKWARD:
+                if(getScannedRobotEvents().size()==0) {
+				    setTurnRadarRight(360);
+			    }
                 setBack(40); // Move backward by 40 pixels
                 break;
             case TURN_LEFT:
@@ -151,19 +154,19 @@ public class QLearningRobotV2 extends AdvancedRobot {
                 setTurnRadarLeftRadians(getRadarTurnRemainingRadians());    // Lock the radar
                 break;
             case DO_NOTHING:
+                if(getScannedRobotEvents().size()==0) {
+				    setTurnRadarRight(360);
+			    }
                 doNothing(); // Do nothing
                 break;
             case FIRE:
-                if (enemyDistance <= 30)
+                if (enemyDistance <= 80)
                 {
                     fire(Rules.MAX_BULLET_POWER); // Fire a bullet with maximal power because the enemy is nearby
                 }
-                else if (enemyDistance < 30 && enemyDistance < 80)
+                else
                 {
                     fire(Rules.MAX_BULLET_POWER/2);
-                }
-                else{
-                    fire(Rules.MIN_BULLET_POWER); // Fire a bullet with minimal power because the enemy is far away
                 }
                 break;
         }
@@ -191,14 +194,15 @@ public class QLearningRobotV2 extends AdvancedRobot {
 
 public void run() {
     State currentState = getCurrentState();
+    int episode = 1;
     for(;;) {
         currentQValues = mainNetwork.execute(currentState.toArray());
         out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
         
         chooseAction(currentQValues);
-        
         executeAction(action);
         out.println("ACTION: "+action);
+        
         currentReward = reward;
         out.println("REWARD: "+currentReward);
 
@@ -216,21 +220,17 @@ public void run() {
         }
         out.println("UPDATED Q VALUES: "+stringifyField(currentQValues));
         
-        double error = mainNetwork.backPropagate(currentState.toArray(), target);
+        double error = mainNetwork.backPropagate(currentState.toArray(), currentQValues);
         out.println("HUBER LOSS: "+error);
         
         currentState = nextState;
         reward = 0;
         currentReward = 0;
-        
-        // Update the target network weights less frequently
-        // TODO:
-        
+
         if (episode % TARGET_UPDATE_FREQ == 0) {
-            out.println("COPYING WEIGHTS TO THE TARGET NETWORK");
+            out.println("COPYING WEIGHTS TO TARGET NETWORK");
             mainNetwork.copyWeights(targetNetwork);
         }
-        
         episode ++;
     }
 }
@@ -243,17 +243,7 @@ public void run() {
         this.enemyDistance = e.getDistance();
         
         reward += 20;
-
-		int dist = (int) Math.round(e.getDistance()/10);
-		double power = 3.0;
-
-		if(getOthers()==1) {
-			power = 3;
-			if(dist<30&&dist>=15) {power = 2.5;};
-			if(dist<15) {power = 3;};
-		}
-
-		
+	
 //		************************************************************
 //		*******Source: http://robowiki.net/wiki/Linear_Targeting ***
 		double myX = getX();
@@ -269,7 +259,7 @@ public void run() {
 		double battleFieldHeight = getBattleFieldHeight(), 
 		       battleFieldWidth = getBattleFieldWidth();
 		double predictedX = enemyX, predictedY = enemyY;
-		while((++deltaTime) * (20.0 - 3.0 * power) < 
+		while((++deltaTime) * (20.0 - 3.0 * Rules.MAX_BULLET_POWER/2) < 
 		      Point2D.Double.distance(myX, myY, predictedX, predictedY)){		
 			predictedX += Math.sin(enemyHeading) * enemyVelocity;	
 			predictedY += Math.cos(enemyHeading) * enemyVelocity;
@@ -290,16 +280,17 @@ public void run() {
 		setTurnRadarRightRadians(
 		    Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
 		setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
+        setTurnRadarRight(360);
 //		***********************************************************
 //		***********************************************************
-		
+		/*
 		fire(power);
 		numFire++;
 		if(numFire!=2) {
 			scan();
 		}
 		numFire = 0;
-		setTurnRadarRight(360);
+		setTurnRadarRight(360);*/
     }
     
 
@@ -333,7 +324,7 @@ public void run() {
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
-    	reward += -50.0;
+    	reward += -25.0;
     }
 
     public void onBulletMissed(BulletMissedEvent e) {
@@ -341,7 +332,7 @@ public void run() {
     }
 
     public void onBulletHit(BulletHitEvent e) {
-    	reward += 25;
+    	reward += 50;
         if(e.getEnergy() <= 0){
             reward += 150;
         }
@@ -362,26 +353,26 @@ public void run() {
             reward += -15;
         }
 
-		//if (energy > 0 && enemies_dead > 0)
-		//{
-		//	reward += 15;
-		//}
-		//else if (energy > 0 && enemies_dead > 1)
-		//{
-		//	reward += 30;
-		//}
-		//else if (energy > 0 && enemies_dead > 2)
-		//{
-		//	reward += 60;
-		//}
-		//else if (energy > 0 && enemies_dead > 3)
-		//{
-		//	reward += 120;
-		//}
+		if (energy > 0 && enemies_dead > 0)
+		{
+			reward += 15;
+		}
+		else if (energy > 0 && enemies_dead > 1)
+		{
+			reward += 30;
+		}
+		else if (energy > 0 && enemies_dead > 2)
+		{
+			reward += 60;
+		}
+		else if (energy > 0 && enemies_dead > 3)
+		{
+			reward += 120;
+		}
 
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             //out.println("We have reached the threshold");
-            reward -= 5;
+            //reward -= 5;
             if (this.getDistanceRemaining() < THRESHOLD) {
                 //out.println("We are moving towards the wall.");
                 reward -= 30;

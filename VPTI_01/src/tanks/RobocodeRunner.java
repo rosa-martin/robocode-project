@@ -14,7 +14,7 @@ import robocode.control.RobocodeEngine;
 import robocode.control.RobotSpecification;
 
 public class RobocodeRunner {
-	public static int NUM_OF_ROUNDS = 1000;
+	public static int NUM_OF_ROUNDS = 100000;
 
 	public static void main(String[] args) throws IOException {
 		String nazevTridyMehoRobota = "QLearningRobotV2";

@@ -217,8 +217,12 @@ public class QLearningRobot extends AdvancedRobot {
             out.println("RECEIVED REWARD: "+currentReward);
             double maxQ = getMaxQValue(trainingSet.get(stringifyField(nextState.toArray())));
 
-            currentQValues[action] = currentQValues[action] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[action]);
-            currentQValues[action] = MultiLayerPerceptron.softmax(currentQValues[action], currentQValues);
+            for (int i = 0; i<currentQValues.length; i++) {
+                currentQValues[i] = currentQValues[i] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[i]);
+            }
+            for (int i = 0; i<currentQValues.length; i++) {
+                currentQValues[i] = MultiLayerPerceptron.softmax(currentQValues[i], currentQValues);
+            }
             
             out.println("UPDATED Q VALUES: "+stringifyField(currentQValues));
             trainingSet.put(stringifyField(currentState.toArray()), currentQValues);

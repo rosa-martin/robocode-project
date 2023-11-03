@@ -93,18 +93,14 @@ public class MultiLayerPerceptron implements Cloneable
 			}
 		}
 		
-		double[] values = new double[2560];
-
 		// Get output
 		for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
 		{
-			//System.out.println(fLayers.length);
-			values[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
+			output[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
 		}
-
 		for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
 		{
-			output[i] = softmax(values[i], values);
+			output[i] = softmax(output[i], output);
 		}
 		
 		return output;

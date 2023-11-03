@@ -31,7 +31,7 @@ public class QLearningRobot extends AdvancedRobot {
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int action;
 
-    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 128*NUM_OF_INPUTS, 256*NUM_OF_INPUTS, NUM_OF_OUTPUTS};
+    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 256*NUM_OF_INPUTS, NUM_OF_OUTPUTS};
 
     private double enemyBearing;
     private double enemyDistance;
@@ -194,10 +194,14 @@ public class QLearningRobot extends AdvancedRobot {
             
             // If exploring, we take a random action.
             if (Math.random() < EPSILON) { 
+                out.println("TAKING RANDOM ACTION");
                 action = rand.nextInt(NUM_OF_OUTPUTS);
             }
             else {
-                action = chooseAction(predict(currentState));
+                out.println("TAKING ACTION FROM THE NEURAL NETWORK");
+                double[] pred_qs = predict(currentState);
+                out.println("PREDICTED Q VALUES: "+stringifyField(pred_qs));
+                action = chooseAction(pred_qs);
             }
 
             out.println("CHOSEN ACTION: "+action);
@@ -213,11 +217,13 @@ public class QLearningRobot extends AdvancedRobot {
             out.println("RECEIVED REWARD: "+currentReward);
             double maxQ = getMaxQValue(trainingSet.get(stringifyField(nextState.toArray())));
 
-            currentQValues[action] = currentQValues[action] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[action]);
-
-            for(int i = 0; i < currentQValues.length; i++){
+            for (int i = 0; i<currentQValues.length; i++) {
+                currentQValues[i] = currentQValues[i] + ALPHA * (currentReward + GAMMA * maxQ - currentQValues[i]);
+            }
+            for (int i = 0; i<currentQValues.length; i++) {
                 currentQValues[i] = MultiLayerPerceptron.softmax(currentQValues[i], currentQValues);
             }
+            
             out.println("UPDATED Q VALUES: "+stringifyField(currentQValues));
             trainingSet.put(stringifyField(currentState.toArray()), currentQValues);
             //out.println("STATE OF THE Q TABLE:");
