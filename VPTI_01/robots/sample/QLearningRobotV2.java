@@ -5,8 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import sun.misc.Signal;
-import sun.misc.SignalHandler;
+//import sun.misc.Signal;
+//import sun.misc.SignalHandler;
 import tanks.RobocodeRunner;
 //import javafx.geometry.Point2D;
 import robocode.*;
@@ -18,13 +18,11 @@ import java.io.PrintStream;
 public class QLearningRobotV2 extends AdvancedRobot {
 
     private static final int MAX_EPISODES = RobocodeRunner.NUM_OF_ROUNDS;       // Number of rounds
-    private static int episode = 0;                     // Number of the current episode
     private static final double GAMMA = 0.9;            // How important is the next estimated reward?
     private static final double ALPHA = 0.1;            // How fast shall we converge? -- The learning rate
     private static double EPS_START = 1.0;              // Maximal (Starting) Exploration rate
     private static double EPS_END = 0.05;               // Minimal (Ending) Exploration rate
     private static int EPS_DECAY = 1000;                // The exploration decay rate => We are focusing on exploitation more that exploration.
-    private static int STEPS_DONE = 0;                  // How many times we have made a decision
 
     private static final int NUM_OF_INPUTS = 15;
     private static final int NUM_OF_OUTPUTS = Action.values().length;
@@ -95,8 +93,8 @@ public class QLearningRobotV2 extends AdvancedRobot {
     }
 
     private int chooseAction(double[] qValues) {
-        double eps_threshold = EPS_END + (EPS_START - EPS_END) * Math.exp(-1. * STEPS_DONE / EPS_DECAY);
-        STEPS_DONE ++;
+        double eps_threshold = EPS_END + (EPS_START - EPS_END) * Math.exp(-1. * RobocodeRunner.STEPS_DONE / EPS_DECAY);
+        RobocodeRunner.STEPS_DONE ++;
 
         if (Math.random() < eps_threshold) { 
             out.println("TAKING RANDOM ACTION");
@@ -247,6 +245,7 @@ public void run() {
 	
 //		************************************************************
 //		*******Source: http://robowiki.net/wiki/Linear_Targeting
+        /*
         double bulletPower = Math.min(3.0,getEnergy());
         double myX = getX();
         double myY = getY();
@@ -282,7 +281,8 @@ public void run() {
         setTurnRadarRightRadians(
             Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
         setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
-        //fire(bulletPower);
+        fire(bulletPower);
+        */
     }
     
 
@@ -443,7 +443,7 @@ public void run() {
                 maxQs[i] = getMaxQValue(currentQs[i]);
 
                 lastQs[i][actions[i]] = lastQs[i][actions[i]] + ALPHA * (rewards[i] + GAMMA * maxQs[i] - lastQs[i][actions[i]]);
-                out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
+                //out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
             }
             error = mainNetwork.batchBackPropagate(lastStates, lastQs);
         }
@@ -454,12 +454,12 @@ public void run() {
         }
         RobocodeRunner.memory.add(new Sample(lastState, action, lastReward, currentState));
 
-        if (episode % TARGET_UPDATE_FREQ == 0) {
+        if (RobocodeRunner.CURRENT_EPISODE % TARGET_UPDATE_FREQ == 0) {
             out.println("COPYING WEIGHTS TO TARGET NETWORK");
             mainNetwork.copyWeights(targetNetwork);
         }
         
-        episode ++;
+        RobocodeRunner.CURRENT_EPISODE ++;
         lastEnergy = energy;
 		lastState = currentState;
 		lastReward = currentReward;
