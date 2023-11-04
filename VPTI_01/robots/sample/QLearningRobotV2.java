@@ -355,7 +355,13 @@ public void run() {
         this.bulletHeading = e.getHeading();
         this.bulletVelocity = e.getVelocity();
         this.bulletPower = e.getPower();
-    	hitByBullet = -3.0;
+
+        if (this.bulletPower > 2) {
+            hitByBullet = -5.0;
+        }
+        else {
+            hitByBullet = -2.5;
+        }
     }
 
     public void onBulletMissed(BulletMissedEvent e) {
@@ -367,7 +373,7 @@ public void run() {
             bulletHitPen = 5;
         }
     	else {
-            bulletHitPen = 2;
+            bulletHitPen = 2.5;
         }
         if(e.getEnergy() <= 0){
             bulletHitPen = 10;
