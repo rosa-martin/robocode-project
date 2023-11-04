@@ -60,10 +60,6 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new ReLU());
     private MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new ReLU());
     
-    // WE MUST SAVE THE MEMORY TO FILE OR SOMETHING, BECAUSE IT IS FLUSHED EVERY ROUND BECAUSE FUCKING ROBOCODE. :)
-    public ArrayList<Sample> memory = new ArrayList<Sample>();
-
-    //private static HashMap<String, double[]> trainingSet = new HashMap<String, double[]>();
     Random rand = new Random();
 
     State currentState;
@@ -223,11 +219,11 @@ public class QLearningRobotV2 extends AdvancedRobot {
         Random rand = new Random();
         ArrayList<Sample> samples = new ArrayList<Sample>();
         
-        if (num <= memory.size())
+        if (num <= RobocodeRunner.memory.size())
         {
             for (int i = 0; i < num; i++) {
-                int index = rand.nextInt(memory.size());
-                samples.add(memory.get(index));
+                int index = rand.nextInt(RobocodeRunner.memory.size());
+                samples.add(RobocodeRunner.memory.get(index));
             }
         }
 
@@ -414,8 +410,8 @@ public void run() {
         currentQValues = targetNetwork.execute(currentState.toArray());
         //out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
         double error = 0.0;
-
-        if(memory.size() < BATCH_SIZE) {
+        out.println("SIZE OF MEMORY: "+RobocodeRunner.memory.size());
+        if(RobocodeRunner.memory.size() < BATCH_SIZE) {
             out.println("USING SINGLE INPUT");
             double maxQ = getMaxQValue(currentQValues);
             lastQValues[action] = lastQValues[action] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[action]);
@@ -453,10 +449,10 @@ public void run() {
         }
         
         out.println("HUBER LOSS: "+error);
-        if (memory.size() >= MEMORY_SIZE) {
-            memory.remove(0);
+        if (RobocodeRunner.memory.size() >= MEMORY_SIZE) {
+            RobocodeRunner.memory.remove(0);
         }
-        memory.add(new Sample(lastState, action, lastReward, currentState));
+        RobocodeRunner.memory.add(new Sample(lastState, action, lastReward, currentState));
 
         if (episode % TARGET_UPDATE_FREQ == 0) {
             out.println("COPYING WEIGHTS TO TARGET NETWORK");
@@ -469,97 +465,4 @@ public void run() {
 		lastReward = currentReward;
 		currentReward = 0.0;
 	}
-}
-
-class State {
-    private double x; // The robot's x position
-    private double y; // The robot's y position
-    private double heading; // The robot's heading in degrees
-    private double velocity; // The robot's velocity
-    private double energy; // The robot's energy
-    private double enemyBearing; // The bearing to the enemy from the robot's heading
-    private double enemyDistance; // The distance to the enemy
-    private double gunHeat; //heat of gun
-    private double gunHeading; // The heading of the gun in degrees
-    private double radarHeading; // The heading of the radar in degrees
-    private double enemyCount;
-    private double enemyX;
-    private double enemyY;
-    private double enemyHeading;
-    private double enemyVelocity;
-
-    public State(double x, double y, double heading, double velocity, double energy, double enemyBearing, double enemyDistance, double gunHeat, double gunHeading, double radarHeading, double enemyCount, double enemyX, double enemyY, double enemyHeading, double enemyVelocity) {
-        this.x = Math.rint(x);
-        this.y = Math.rint(y);
-        this.heading = Math.rint(heading);
-        this.velocity = Math.rint(velocity);
-        this.energy = Math.rint(energy);
-        this.enemyBearing = Math.rint(enemyBearing);
-        this.enemyDistance = Math.rint(enemyDistance);
-        this.gunHeat = Math.rint(gunHeat);
-        this.gunHeading = Math.rint(gunHeading);
-        this.radarHeading = Math.rint(radarHeading);
-        this.enemyCount = Math.rint(enemyCount);
-        this.enemyX = Math.rint(enemyX);
-        this.enemyY = Math.rint(enemyY);
-        this.enemyHeading = Math.rint(enemyHeading);
-        this.enemyVelocity = Math.rint(enemyVelocity);
-    }
-
-    // Getters and setters for each field go here
-
-    public double[] toArray() {
-        return new double[]{x, y, heading, velocity, energy, enemyBearing, enemyDistance, gunHeat, gunHeading, radarHeading, enemyCount, enemyX, enemyY, enemyHeading, enemyVelocity};
-    }
-
-    @Override
-    public String toString() {
-        return QLearningRobot.stringifyField(this.toArray());
-    }
-}
-
-class Sample {
-    private State lastState;
-    private int action;
-    private double reward;
-    private State currentState;
-    
-    public State getLastState() {
-        return lastState;
-    }
-
-    public void setLastState(State currentState) {
-        this.lastState = currentState;
-    }
-
-    public int getAction() {
-        return action;
-    }
-
-    public void setAction(int action) {
-        this.action = action;
-    }
-
-    public double getReward() {
-        return reward;
-    }
-
-    public void setReward(int reward) {
-        this.reward = reward;
-    }
-
-    public State getCurrentState() {
-        return currentState;
-    }
-
-    public void setCurrentState(State nexState) {
-        this.currentState = nexState;
-    }
-
-    public Sample(State currentState, int action, double currentReward, State nexState) {
-        this.lastState = currentState;
-        this.action = action;
-        this.reward = currentReward;
-        this.currentState = nexState;
-    }
 }

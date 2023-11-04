@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
@@ -13,8 +14,15 @@ import robocode.control.BattleSpecification;
 import robocode.control.BattlefieldSpecification;
 import robocode.control.RobocodeEngine;
 import robocode.control.RobotSpecification;
+import sample.Sample;
+
 public class RobocodeRunner {
+	
 	public static int NUM_OF_ROUNDS = 100000;
+	public static int CURRENT_EPISODE = 0;
+	public static int STEPS_DONE = 0;                  // How many times we have made a decision
+	// THIS SHOULD DO IT
+    public static ArrayList<Sample> memory = new ArrayList<Sample>();
 
 	public static void main(String[] args) throws IOException {
 		String nazevTridyMehoRobota = "QLearningRobotV2";

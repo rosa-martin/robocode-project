@@ -16,21 +16,21 @@
  */
 package sample;
 
-public class HeavysideTransfer implements TransferFunction 
+public class Neuron 
 {
-	@Override
-	public double evaluate(double value) 
+	public double		Value;
+	public double[]		Weights;
+	public double		Bias;
+	public double		Delta;
+	
+	public Neuron(int prevLayerSize)
 	{
-		if(value >= 0.0)
-			return 1.0;
-		else
-			return 0.0;
+		Weights = new double[prevLayerSize];
+		Bias = Math.random() / 10000000000000.0;
+		Delta = Math.random() / 10000000000000.0;
+		Value = Math.random() / 10000000000000.0;
+		
+		for(int i = 0; i < Weights.length; i++)
+			Weights[i] = Math.random() / 10000000000000.0;
 	}
-
-	@Override
-	public double evaluateDerivate(double value) 
-	{
-		return 1.0;
-	}
-
 }
