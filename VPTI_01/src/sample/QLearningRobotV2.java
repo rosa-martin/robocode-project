@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import java.awt.Color;
 //import sun.misc.Signal;
 //import sun.misc.SignalHandler;
 import tanks.RobocodeRunner;
@@ -29,9 +30,9 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private final static int HEIGHT = 600;
     private final static int WIDTH = 800;
     private final static double THRESHOLD = 50.0;
-    private final static int TARGET_UPDATE_FREQ = 200;
-    private final static int BATCH_SIZE = 10;
-    private final static int MEMORY_SIZE = 5000;
+    private final static int TARGET_UPDATE_FREQ = 100;
+    private final static int BATCH_SIZE = 30;
+    private final static int MEMORY_SIZE = 7500;
 
     private double[] lastQValues = new double[NUM_OF_OUTPUTS];
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
@@ -229,6 +230,14 @@ public class QLearningRobotV2 extends AdvancedRobot {
     }
 
 public void run() {
+    setAdjustRadarForRobotTurn(true);//keep the radar still while we turn
+    setBodyColor(Color.black);
+    setGunColor(Color.black);
+    setRadarColor(Color.black);
+    setScanColor(Color.black);
+    setBulletColor(Color.black);
+    setAdjustGunForRobotTurn(true); // Keep the gun still when we turn
+    
     for(;;) {
         executeAction(action);
     }
