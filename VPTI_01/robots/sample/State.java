@@ -16,8 +16,15 @@ public class State {
     private double enemyY;
     private double enemyHeading;
     private double enemyVelocity;
+    private double enemyEnergy;
+    private double bulletHeading;
+    private double bulletBearing;
+    private double bulletPower;
+    private double bulletVelocity;
 
-    public State(double x, double y, double heading, double velocity, double energy, double enemyBearing, double enemyDistance, double gunHeat, double gunHeading, double radarHeading, double enemyCount, double enemyX, double enemyY, double enemyHeading, double enemyVelocity) {
+    public State(double x, double y, double heading, double velocity, double energy, double gunHeat, double gunHeading, double radarHeading, double enemyCount,
+     double enemyBearing, double enemyDistance, double enemyX, double enemyY, double enemyHeading, double enemyVelocity, double enemyEnergy, double bulletHeading,
+     double bulletBearing, double bulletPower, double bulletVelocity) {
         this.x = Math.rint(x);
         this.y = Math.rint(y);
         this.heading = Math.rint(heading);
@@ -33,12 +40,16 @@ public class State {
         this.enemyY = Math.rint(enemyY);
         this.enemyHeading = Math.rint(enemyHeading);
         this.enemyVelocity = Math.rint(enemyVelocity);
+        this.enemyEnergy = Math.rint(enemyEnergy);
+        this.bulletHeading = Math.rint(bulletHeading);
+        this.bulletBearing = Math.rint(bulletBearing);
+        this.bulletVelocity = Math.rint(bulletVelocity);
+        this.bulletPower = Math.rint(bulletPower);
     }
 
-    // Getters and setters for each field go here
-
     public double[] toArray() {
-        return new double[]{x, y, heading, velocity, energy, enemyBearing, enemyDistance, gunHeat, gunHeading, radarHeading, enemyCount, enemyX, enemyY, enemyHeading, enemyVelocity};
+        return new double[]{x, y, heading, velocity, energy, gunHeat, gunHeading, radarHeading, enemyCount, enemyBearing, enemyDistance, enemyX, enemyY,
+            enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity};
     }
 
     @Override

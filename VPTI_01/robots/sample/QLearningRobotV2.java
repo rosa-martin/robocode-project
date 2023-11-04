@@ -2,19 +2,13 @@ package sample;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 import java.awt.Color;
-//import sun.misc.Signal;
-//import sun.misc.SignalHandler;
 import tanks.RobocodeRunner;
-//import javafx.geometry.Point2D;
 import robocode.*;
 import robocode.util.Utils;
 import java.awt.geom.Point2D;
-import java.io.IOException;
-import java.io.PrintStream;
 
 public class QLearningRobotV2 extends AdvancedRobot {
 
@@ -25,7 +19,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private static double EPS_END = 0.05;               // Minimal (Ending) Exploration rate
     private static int EPS_DECAY = 1000;                // The exploration decay rate => We are focusing on exploitation more that exploration.
 
-    private static final int NUM_OF_INPUTS = 15;
+    private static final int NUM_OF_INPUTS = 20;
     private static final int NUM_OF_OUTPUTS = Action.values().length;
     private final static int HEIGHT = 600;
     private final static int WIDTH = 800;
@@ -46,7 +40,11 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private double enemyX;
     private double enemyY;
     private double enemyVelocity;
-    private static int numFire = 0;
+    private double enemyEnergy;
+    private double bulletBearing; 
+    private double bulletHeading;
+    private double bulletVelocity;
+    private double bulletPower; 
 
     private static double hitWallPen = 0.0;
 	private static double hitByBullet = 0.0;
@@ -73,17 +71,20 @@ public class QLearningRobotV2 extends AdvancedRobot {
         MOVE_BACKWARD, // Move backward
         TURN_LEFT, // Turn left
         TURN_RIGHT, // Turn right
+        /*
         TURN_RADAR_LEFT, // Turn radar left
         TURN_RADAR_RIGHT, // Turn radar right
         TURN_GUN_LEFT, // Turn gun left
         TURN_GUN_RIGHT, // Turn gun right
+        */
         SLOW_DOWN, // Slow down
         FASTER, // Increase the velocity
         SPIN_RADAR, // Do a radar spin
-        DO_NOTHING, // Do nothing
+        DO_NOTHING; // Do nothing
+        /*
         BATCH_FIRE, // Fire a batch of bullets
         FIRE; // Fire
-    
+        */
         public int getIndex() {
             return this.ordinal();
         }
@@ -143,6 +144,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
             case TURN_RIGHT:
                 setTurnRight(30); // Turn right by 30 degrees
                 break;
+            /*
             case TURN_RADAR_LEFT:
                 setTurnRadarLeft(90); // Turn left by 90 degrees
                 break;
@@ -155,6 +157,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
             case TURN_GUN_RIGHT:
                 setTurnGunRight(30); // Turn right by 30 degrees
                 break;
+            */
             case SLOW_DOWN:
                 setMaxVelocity(this.getVelocity()/2); // Slow down
                 break;
@@ -167,6 +170,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
             case DO_NOTHING:
                 doNothing(); // Do nothing
                 break;
+            /*
             case FIRE:
                 if (enemyDistance <= 80)
                 {
@@ -191,6 +195,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
                     }
                 }
                 break;
+            */
         }
         execute(); // Executes all pending commands
     }    
@@ -246,7 +251,7 @@ public void run() {
     public void onScannedRobot(ScannedRobotEvent e) {
         // Calculate the bearing to the scanned robot
         this.enemyBearing = e.getBearing();
-    
+        this.enemyEnergy = e.getEnergy();
         // Get the distance to the scanned robot
         this.enemyDistance = e.getDistance();
         this.enemyHeading = e.getHeading();
@@ -254,8 +259,8 @@ public void run() {
 	
 //		************************************************************
 //		*******Source: http://robowiki.net/wiki/Linear_Targeting
-        /*
-        double bulletPower = Math.min(3.0,getEnergy());
+        
+        double bulletPower = Math.min(3.0, getEnergy());
         double myX = getX();
         double myY = getY();
         double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
@@ -290,8 +295,16 @@ public void run() {
         setTurnRadarRightRadians(
             Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
         setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
-        fire(bulletPower);
-        */
+
+        if (this.enemyDistance <= 50 && this.enemyEnergy >= 50) {
+            for (int i = 0; i < 3; i++) {
+                fire(bulletPower);
+            }
+        }
+        else {
+            fire(bulletPower);
+        }
+        
     }
     
 
@@ -310,9 +323,15 @@ public void run() {
         // Get the enemy's bearing and distance from our robot
         double enemyBearing = this.enemyBearing;
         double enemyDistance = this.enemyDistance;
+        double enemyX = this.enemyX;
+        double enemyY = this.enemyY;
+        double enemyHeading = this.enemyHeading;
+        double enemyVelocity = this.enemyVelocity;
+        double enemyEnergy = this.enemyEnergy;
     
         // Return a new State object with these values
-        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, enemyBearing, enemyDistance, ourGunHeat, ourGunHeading, ourRadarHeading, enemyCount, enemyX, enemyY, enemyHeading, enemyVelocity);
+        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, ourGunHeat, ourGunHeading, ourRadarHeading, enemyCount,
+        enemyBearing, enemyDistance, enemyX, enemyY, enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
     }
     
     public void onHitWall(HitWallEvent e) {
@@ -325,6 +344,10 @@ public void run() {
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
+        this.bulletBearing = e.getBearing();
+        this.bulletHeading = e.getHeading();
+        this.bulletVelocity = e.getVelocity();
+        this.bulletPower = e.getPower();
     	hitByBullet = -3.0;
     }
 
@@ -386,22 +409,22 @@ public void run() {
 			currentReward += robotDeathPen;
 			robotDeathPen = 0.0;
 		}
-        /* 
+        
 		if (energy > 0 && enemies_dead > 0)
 		{
-			reward += 30;
+			currentReward += 1.5;
 		}
 		else if (energy > 0 && enemies_dead > 1)
 		{
-			reward += 60;
+			currentReward += 3;
 		}
-        */
+        
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             //out.println("We have reached the threshold");
             //reward -= 5;
             if (this.getDistanceRemaining() < THRESHOLD) {
                 //out.println("We are moving towards the wall.");
-                currentReward += -0.5;
+                currentReward += -1;
             }
         }
         
