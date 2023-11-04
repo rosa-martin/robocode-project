@@ -19,7 +19,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private static double EPS_END = 0.05;               // Minimal (Ending) Exploration rate
     private static int EPS_DECAY = 1000;                // The exploration decay rate => We are focusing on exploitation more that exploration.
 
-    private static final int NUM_OF_INPUTS = 20;
+    private static final int NUM_OF_INPUTS = 19;
     private static final int NUM_OF_OUTPUTS = Action.values().length;
     private final static int HEIGHT = 600;
     private final static int WIDTH = 800;
@@ -45,6 +45,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private double bulletHeading;
     private double bulletVelocity;
     private double bulletPower; 
+    private double scannedRobots;
 
     private static double hitWallPen = 0.0;
 	private static double hitByBullet = 0.0;
@@ -259,52 +260,48 @@ public void run() {
 	
 //		************************************************************
 //		*******Source: http://robowiki.net/wiki/Linear_Targeting
-        
-        double bulletPower = Math.min(3.0, getEnergy());
-        double myX = getX();
-        double myY = getY();
-        double absoluteBearing = getHeadingRadians() + e.getBearingRadians();
-        double enemyX = getX() + e.getDistance() * Math.sin(absoluteBearing);
-        double enemyY = getY() + e.getDistance() * Math.cos(absoluteBearing);
-        double enemyHeading = e.getHeadingRadians();
-        double enemyVelocity = e.getVelocity();
-
-
-        double deltaTime = 0;
-        double battleFieldHeight = getBattleFieldHeight(), 
-            battleFieldWidth = getBattleFieldWidth();
-        double predictedX = enemyX, predictedY = enemyY;
-        while((++deltaTime) * (20.0 - 3.0 * bulletPower) < 
-            Point2D.Double.distance(myX, myY, predictedX, predictedY)){		
-            predictedX += Math.sin(enemyHeading) * enemyVelocity;	
-            predictedY += Math.cos(enemyHeading) * enemyVelocity;
-            if(	predictedX < 18.0 
-                || predictedY < 18.0
-                || predictedX > battleFieldWidth - 18.0
-                || predictedY > battleFieldHeight - 18.0){
-                predictedX = Math.min(Math.max(18.0, predictedX), 
-                            battleFieldWidth - 18.0);	
-                predictedY = Math.min(Math.max(18.0, predictedY), 
-                            battleFieldHeight - 18.0);
-                break;
-            }
+        // ... Radar code ..
+        final double FIREPOWER = 2;
+        final double ROBOT_WIDTH = 16,ROBOT_HEIGHT = 16;
+        // Variables prefixed with e- refer to enemy, b- refer to bullet and r- refer to robot
+        final double eAbsBearing = getHeadingRadians() + e.getBearingRadians();
+        final double rX = getX(), rY = getY(),
+            bV = Rules.getBulletSpeed(FIREPOWER);
+        final double eX = rX + e.getDistance()*Math.sin(eAbsBearing),
+            eY = rY + e.getDistance()*Math.cos(eAbsBearing),
+            eV = e.getVelocity(),
+            eHd = e.getHeadingRadians();
+        // These constants make calculating the quadratic coefficients below easier
+        final double A = (eX - rX)/bV;
+        final double B = eV/bV*Math.sin(eHd);
+        final double C = (eY - rY)/bV;
+        final double D = eV/bV*Math.cos(eHd);
+        // Quadratic coefficients: a*(1/t)^2 + b*(1/t) + c = 0
+        final double a = A*A + C*C;
+        final double b = 2*(A*B + C*D);
+        final double c = (B*B + D*D - 1);
+        final double discrim = b*b - 4*a*c;
+        if (discrim >= 0) {
+            // Reciprocal of quadratic formula
+            final double t1 = 2*a/(-b - Math.sqrt(discrim));
+            final double t2 = 2*a/(-b + Math.sqrt(discrim));
+            final double t = Math.min(t1, t2) >= 0 ? Math.min(t1, t2) : Math.max(t1, t2);
+            // Assume enemy stops at walls
+            final double endX = limit(
+                eX + eV*t*Math.sin(eHd),
+                ROBOT_WIDTH/2, getBattleFieldWidth() - ROBOT_WIDTH/2);
+            final double endY = limit(
+                eY + eV*t*Math.cos(eHd),
+                ROBOT_HEIGHT/2, getBattleFieldHeight() - ROBOT_HEIGHT/2);
+            setTurnGunRightRadians(robocode.util.Utils.normalRelativeAngle(
+                Math.atan2(endX - rX, endY - rY)
+                - getGunHeadingRadians()));
+            setFire(FIREPOWER);
         }
-        double theta = Utils.normalAbsoluteAngle(Math.atan2(
-            predictedX - getX(), predictedY - getY()));
+    }
 
-        setTurnRadarRightRadians(
-            Utils.normalRelativeAngle(absoluteBearing - getRadarHeadingRadians()));
-        setTurnGunRightRadians(Utils.normalRelativeAngle(theta - getGunHeadingRadians()));
-
-        if (this.enemyDistance <= 50 && this.enemyEnergy >= 50) {
-            for (int i = 0; i < 3; i++) {
-                fire(bulletPower);
-            }
-        }
-        else {
-            fire(bulletPower);
-        }
-        
+    private double limit(double value, double min, double max) {
+        return Math.min(max, Math.max(min, value));
     }
     
 
@@ -315,10 +312,11 @@ public void run() {
         double ourHeading = getHeading();
         double ourVelocity = getVelocity();
         double ourEnergy = getEnergy();
-        double ourGunHeat = getGunHeat();
-        double ourGunHeading = getGunHeading();
+        //double ourGunHeat = getGunHeat();
+        //double ourGunHeading = getGunHeading();
         double ourRadarHeading = getRadarHeading();
         double enemyCount = getOthers();
+        double scannedRobots = (double) getScannedRobotEvents().size();
     
         // Get the enemy's bearing and distance from our robot
         double enemyBearing = this.enemyBearing;
@@ -328,10 +326,14 @@ public void run() {
         double enemyHeading = this.enemyHeading;
         double enemyVelocity = this.enemyVelocity;
         double enemyEnergy = this.enemyEnergy;
+        double bulletHeading = this.bulletHeading;
+        double bulletBearing = this.bulletBearing;
+        double bulletPower = this.bulletPower;
+        double bulletVelocity = this.bulletVelocity;
     
         // Return a new State object with these values
-        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, ourGunHeat, ourGunHeading, ourRadarHeading, enemyCount,
-        enemyBearing, enemyDistance, enemyX, enemyY, enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
+        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, ourRadarHeading, enemyCount, scannedRobots, enemyBearing,
+        enemyDistance, enemyX, enemyY, enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
     }
     
     public void onHitWall(HitWallEvent e) {
@@ -340,7 +342,12 @@ public void run() {
     }
     
     public void onHitRobot(HitRobotEvent e) {
-    	hitEnemyPen = -1.5;
+        if (e.getEnergy() < 10){
+            hitEnemyPen = 1.5;
+        }
+        else {
+            hitEnemyPen = -1.5;
+        }
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
@@ -356,9 +363,14 @@ public void run() {
     }
 
     public void onBulletHit(BulletHitEvent e) {
-    	bulletHitPen = 3;
+        if (e.getBullet().getPower()>=2){
+            bulletHitPen = 5;
+        }
+    	else {
+            bulletHitPen = 2;
+        }
         if(e.getEnergy() <= 0){
-            bulletHitPen = 8;
+            bulletHitPen = 10;
         }
     }
 

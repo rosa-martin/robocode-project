@@ -11,6 +11,7 @@ public class State {
     private double gunHeat; //heat of gun
     private double gunHeading; // The heading of the gun in degrees
     private double radarHeading; // The heading of the radar in degrees
+    private double scannedRobots;
     private double enemyCount;
     private double enemyX;
     private double enemyY;
@@ -22,9 +23,9 @@ public class State {
     private double bulletPower;
     private double bulletVelocity;
 
-    public State(double x, double y, double heading, double velocity, double energy, double gunHeat, double gunHeading, double radarHeading, double enemyCount,
-     double enemyBearing, double enemyDistance, double enemyX, double enemyY, double enemyHeading, double enemyVelocity, double enemyEnergy, double bulletHeading,
-     double bulletBearing, double bulletPower, double bulletVelocity) {
+    public State(double x, double y, double heading, double velocity, double energy, double radarHeading, double enemyCount, double scannedRobots,
+     double enemyBearing, double enemyDistance, double enemyX, double enemyY, double enemyHeading, double enemyVelocity, double enemyEnergy, 
+     double bulletHeading, double bulletBearing, double bulletPower, double bulletVelocity) {
         this.x = Math.rint(x);
         this.y = Math.rint(y);
         this.heading = Math.rint(heading);
@@ -32,9 +33,10 @@ public class State {
         this.energy = Math.rint(energy);
         this.enemyBearing = Math.rint(enemyBearing);
         this.enemyDistance = Math.rint(enemyDistance);
-        this.gunHeat = Math.rint(gunHeat);
-        this.gunHeading = Math.rint(gunHeading);
+        //this.gunHeat = Math.rint(gunHeat);
+        //this.gunHeading = Math.rint(gunHeading);
         this.radarHeading = Math.rint(radarHeading);
+        this.scannedRobots = scannedRobots;
         this.enemyCount = Math.rint(enemyCount);
         this.enemyX = Math.rint(enemyX);
         this.enemyY = Math.rint(enemyY);
@@ -48,7 +50,7 @@ public class State {
     }
 
     public double[] toArray() {
-        return new double[]{x, y, heading, velocity, energy, gunHeat, gunHeading, radarHeading, enemyCount, enemyBearing, enemyDistance, enemyX, enemyY,
+        return new double[]{x, y, heading, velocity, energy, radarHeading, enemyCount, scannedRobots, enemyBearing, enemyDistance, enemyX, enemyY,
             enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity};
     }
 
