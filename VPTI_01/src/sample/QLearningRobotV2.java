@@ -32,12 +32,14 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private final static int WIDTH = 800;
     private final static double THRESHOLD = 50.0;
     private final static int TARGET_UPDATE_FREQ = 200;
+    private final static int BATCH_SIZE = 10;
+    private final static int MEMORY_SIZE = 5000;
 
     private double[] lastQValues = new double[NUM_OF_OUTPUTS];
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int action;
 
-    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, 1024, NUM_OF_OUTPUTS};
+    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
 
     private double enemyBearing;
     private double enemyHeading;
@@ -57,7 +59,9 @@ public class QLearningRobotV2 extends AdvancedRobot {
 
     private MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new ReLU());
     private MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new ReLU());
-    private ArrayList<Sample> samples = new ArrayList<Sample>();
+    
+    // WE MUST SAVE THE MEMORY TO FILE OR SOMETHING, BECAUSE IT IS FLUSHED EVERY ROUND BECAUSE FUCKING ROBOCODE. :)
+    public ArrayList<Sample> memory = new ArrayList<Sample>();
 
     //private static HashMap<String, double[]> trainingSet = new HashMap<String, double[]>();
     Random rand = new Random();
@@ -215,11 +219,22 @@ public class QLearningRobotV2 extends AdvancedRobot {
         }
     }
 
-public void run() {
-    if (lastState == null) {
-            out.println("INITIAL STATE");
-            lastState = getCurrentState();
+    public ArrayList<Sample> getSamples(int num) {
+        Random rand = new Random();
+        ArrayList<Sample> samples = new ArrayList<Sample>();
+        
+        if (num <= memory.size())
+        {
+            for (int i = 0; i < num; i++) {
+                int index = rand.nextInt(memory.size());
+                samples.add(memory.get(index));
+            }
         }
+
+        return samples;
+    }
+
+public void run() {
     for(;;) {
         executeAction(action);
     }
@@ -324,6 +339,11 @@ public void run() {
     }
 
     public void onStatus(StatusEvent e) {
+        if (lastState == null) {
+            out.println("INITIAL STATE");
+            lastState = getCurrentState();
+        }
+
 		double energy = e.getStatus().getEnergy();
 		int enemy_count = e.getStatus().getOthers();
 		int max_enemies = 3;
@@ -380,9 +400,9 @@ public void run() {
             }
         }
         
-        out.println("CURRENT STATE: "+stringifyField(lastState.toArray()));
+        //out.println("LAST STATE: "+stringifyField(lastState.toArray()));
         lastQValues = mainNetwork.execute(lastState.toArray());
-        out.println("CURRENT Q VALUES: "+stringifyField(lastQValues));
+        //out.println("LAST Q VALUES: "+stringifyField(lastQValues));
         
         action = chooseAction(lastQValues);
 
@@ -390,27 +410,60 @@ public void run() {
         out.println("REWARD: "+lastReward);
 
         currentState = getCurrentState();
-        out.println("NEXT STATE: "+stringifyField(currentState.toArray()));
+        //out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
         currentQValues = targetNetwork.execute(currentState.toArray());
-        out.println("TARGET Q VALUES: "+stringifyField(currentQValues));
+        //out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
+        double error = 0.0;
 
-        double maxQ = getMaxQValue(currentQValues);
-        
-        lastQValues[action] = lastQValues[action] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[action]);
+        if(memory.size() < BATCH_SIZE) {
+            out.println("USING SINGLE INPUT");
+            double maxQ = getMaxQValue(currentQValues);
+            lastQValues[action] = lastQValues[action] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[action]);
+            error = mainNetwork.backPropagate(lastState.toArray(), lastQValues);
+            //out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
+        }
+        else{
+            out.println("USING BATCH INPUT");
+            ArrayList<Sample> trainingSet = getSamples(BATCH_SIZE);
+            double[][] lastStates = new double[trainingSet.size()][NUM_OF_INPUTS];
+            double[][] currentStates = new double[trainingSet.size()][NUM_OF_INPUTS];
+            int[] actions = new int[trainingSet.size()];
+            double[] rewards = new double[trainingSet.size()];
 
-        //currentQValues = MultiLayerPerceptron.softmax(currentQValues);
-        out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
+            double[][] lastQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
+            double[][] currentQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
+            double[] maxQs = new double[trainingSet.size()];
+
+            for (int i = 0; i < trainingSet.size(); i++) {
+                lastStates[i] = trainingSet.get(i).getLastState().toArray();
+                currentStates[i] = trainingSet.get(i).getCurrentState().toArray();
+                actions[i] = trainingSet.get(i).getAction();
+                rewards[i] = trainingSet.get(i).getReward();
+            }
+            
+            lastQs = mainNetwork.executeBatch(lastStates);
+            currentQs = targetNetwork.executeBatch(currentStates);
+            for (int i = 0; i < trainingSet.size(); i++) {
+                maxQs[i] = getMaxQValue(currentQs[i]);
+
+                lastQs[i][actions[i]] = lastQs[i][actions[i]] + ALPHA * (rewards[i] + GAMMA * maxQs[i] - lastQs[i][actions[i]]);
+                out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
+            }
+            error = mainNetwork.batchBackPropagate(lastStates, lastQs);
+        }
         
-        double error = mainNetwork.backPropagate(lastState.toArray(), lastQValues);
         out.println("HUBER LOSS: "+error);
-        //samples.add(new Sample(currentState, action, currentReward, nextState));
+        if (memory.size() >= MEMORY_SIZE) {
+            memory.remove(0);
+        }
+        memory.add(new Sample(lastState, action, lastReward, currentState));
 
         if (episode % TARGET_UPDATE_FREQ == 0) {
             out.println("COPYING WEIGHTS TO TARGET NETWORK");
             mainNetwork.copyWeights(targetNetwork);
         }
-        episode ++;
         
+        episode ++;
         lastEnergy = energy;
 		lastState = currentState;
 		lastReward = currentReward;
@@ -466,17 +519,17 @@ class State {
 }
 
 class Sample {
-    private State currentState;
+    private State lastState;
     private int action;
     private double reward;
-    private State nexState;
+    private State currentState;
     
-    public State getCurrentState() {
-        return currentState;
+    public State getLastState() {
+        return lastState;
     }
 
-    public void setCurrentState(State currentState) {
-        this.currentState = currentState;
+    public void setLastState(State currentState) {
+        this.lastState = currentState;
     }
 
     public int getAction() {
@@ -495,18 +548,18 @@ class Sample {
         this.reward = reward;
     }
 
-    public State getNexState() {
-        return nexState;
+    public State getCurrentState() {
+        return currentState;
     }
 
-    public void setNexState(State nexState) {
-        this.nexState = nexState;
+    public void setCurrentState(State nexState) {
+        this.currentState = nexState;
     }
 
     public Sample(State currentState, int action, double currentReward, State nexState) {
-        this.currentState = currentState;
+        this.lastState = currentState;
         this.action = action;
         this.reward = currentReward;
-        this.nexState = nexState;
+        this.currentState = nexState;
     }
 }

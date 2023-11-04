@@ -103,6 +103,49 @@ public class MultiLayerPerceptron implements Cloneable
 		
 		return output;
 	}
+
+	public double[][] executeBatch(double[][] inputs)
+{
+    int i, j, k, b;
+    double new_value;
+
+    double[][] outputs = new double[inputs.length][fLayers[fLayers.length - 1].Length];
+
+    // Loop over each input in the batch
+    for(b = 0; b < inputs.length; b++) {
+        double[] input = inputs[b];
+
+        // Put input
+        for(i = 0; i < fLayers[0].Length; i++)
+        {
+            fLayers[0].Neurons[i].Value = input[i];
+        }
+
+        // Execute - hiddens + output
+        for(k = 1; k < fLayers.length; k++)
+        {
+            for(i = 0; i < fLayers[k].Length; i++)
+            {
+                new_value = 0.0;
+                for(j = 0; j < fLayers[k - 1].Length; j++)
+                    new_value += fLayers[k].Neurons[i].Weights[j] * fLayers[k - 1].Neurons[j].Value;
+
+                new_value += fLayers[k].Neurons[i].Bias;
+
+                fLayers[k].Neurons[i].Value = fTransferFunction.evaluate(new_value);
+            }
+        }
+
+        // Get output
+        for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
+        {
+            outputs[b][i] = fLayers[fLayers.length - 1].Neurons[i].Value;
+        }
+    }
+
+    return outputs;
+}
+
 	
 	private static double getMaxValue(double[] values) {
         double maxVal = 0.0;
@@ -181,6 +224,7 @@ public class MultiLayerPerceptron implements Cloneable
 	 * @param output Valori di output atteso (scalati tra 0 ed 1)
 	 * @return Errore delta tra output generato ed output atteso
 	 */
+
 	public double backPropagate(double[] input, double[] output)
 	{
 		double new_output[] = execute(input);
@@ -239,6 +283,71 @@ public class MultiLayerPerceptron implements Cloneable
 		}
 		return error;
 	}
+
+	public double batchBackPropagate(double[][] inputs, double[][] outputs)
+{
+    double error = 0.0;
+    double totalError = 0.0;
+    int i, j, k, b;
+
+    // Initialize weight updates to zero
+    double[][][] weightUpdates = new double[fLayers.length][][];
+    for(i = 0; i < fLayers.length; i++) {
+        weightUpdates[i] = new double[fLayers[i].Length + 1][];  // Add +1 here
+        for(j = 0; j < fLayers[i].Length; j++) {
+            weightUpdates[i][j] = new double[fLayers[i].Neurons[j].Weights.length + 1];  // Add +1 here
+        }
+    }
+
+    // Loop over each input-output pair in the batch
+    for(b = 0; b < inputs.length; b++) {
+        double[] input = inputs[b];
+        double[] output = outputs[b];
+
+        double[] new_output = execute(input);
+
+        // Calculate error and deltas for output layer
+        for(i = 0; i < fLayers[fLayers.length - 1].Length; i++) {
+            error = output[i] - new_output[i];
+            fLayers[fLayers.length - 1].Neurons[i].Delta = error * fTransferFunction.evaluateDerivate(new_output[i]);
+        }
+
+        // Backpropagate error and calculate deltas for hidden layers
+        for(k = fLayers.length - 2; k >= 0; k--) {
+            for(i = 0; i < fLayers[k].Length; i++) {
+                error = 0.0;
+                for(j = 0; j < fLayers[k + 1].Length; j++)
+                    error += fLayers[k + 1].Neurons[j].Delta * fLayers[k + 1].Neurons[j].Weights[i];
+
+                fLayers[k].Neurons[i].Delta = error * fTransferFunction.evaluateDerivate(fLayers[k].Neurons[i].Value);
+            }
+        }
+
+        // Calculate weight updates
+        for(k = 0; k < fLayers.length - 1; k++) {
+            for(i = 0; i < fLayers[k + 1].Length; i++) {
+                for(j = 0; j < fLayers[k].Length; j++)
+                    weightUpdates[k + 1][i][j] += fLearningRate * fLayers[k + 1].Neurons[i].Delta * fLayers[k].Neurons[j].Value;
+                weightUpdates[k + 1][i][fLayers[k].Length] += fLearningRate * fLayers[k + 1].Neurons[i].Delta;  // Bias update
+            }
+        }
+
+        // Calculate total error for the batch
+        totalError += huberLoss(new_output, output, 1.0);
+    }
+
+    // Apply average weight updates
+    for(k = 0; k < fLayers.length - 1; k++) {
+        for(i = 0; i < fLayers[k + 1].Length; i++) {
+            for(j = 0; j < fLayers[k].Length; j++)
+                fLayers[k + 1].Neurons[i].Weights[j] += weightUpdates[k + 1][i][j] / inputs.length;
+            fLayers[k + 1].Neurons[i].Bias += weightUpdates[k + 1][i][fLayers[k].Length] / inputs.length;
+        }
+    }
+
+    return totalError / inputs.length;
+}
+
 	
 	/**
 	 * Salva una rete MLP su file
