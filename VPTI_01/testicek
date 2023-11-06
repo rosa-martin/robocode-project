@@ -1,98 +1,73 @@
-<dependencies>
-  <!-- Include the POI library dependency for working with Excel files -->
-  <dependency>
-    <groupId>org.apache.poi</groupId>
-    <artifactId>poi-ooxml</artifactId>
-    <version>5.2.3</version>
-  </dependency>
-  <!-- Include the dependency for POI OOXML Schemas -->
-  <dependency>
-    <groupId>org.apache.poi</groupId>
-    <artifactId>poi-ooxml-schemas</artifactId>
-    <version>4.1.2</version>
-  </dependency>
-</dependencies>
+pip install pandas openpyxl xlsxwriter
 
 
 
-//CODE:
+import pandas as pd
+import json
+from xlsxwriter.utility import xl_rowcol_to_cell
 
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.util.*;
-import org.apache.poi.xssf.usermodel.*;
-import org.apache.poi.xddf.usermodel.chart.*;
+# Let's assume you have a JSON string with your data, you might also load this from a file.
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.List;
 
-public class ExcelChartExample {
+#with open('data.json', 'r') as f:
+#    json_data = json.load(f)
 
-    public static void writeToExcel(List<double[]> dataList, String fileName) throws IOException {
-        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
-            XSSFSheet sheet = workbook.createSheet("Data");
+json_data = '''
+[
+    {"error": 0.1, "time": 1.0},
+    {"error": 0.2, "time": 2.0}
+    // ... more data
+]
+'''
 
-            // Create the headers
-            Row header = sheet.createRow(0);
-            header.createCell(0).setCellValue("Time");
-            header.createCell(1).setCellValue("Error");
+# Convert JSON data to a pandas DataFrame
+data = json.loads(json_data)
+df = pd.DataFrame(data)
 
-            // Populate the data
-            int rowNum = 1;
-            for (double[] data : dataList) {
-                Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue(data[1]); // time
-                row.createCell(1).setCellValue(data[0]); // error
-            }
+# Create a Pandas Excel writer using XlsxWriter as the engine.
+with pd.ExcelWriter("chart_output.xlsx", engine='xlsxwriter') as writer:
+    # Write the DataFrame data to XlsxWriter. Turn off the default header and
+    # index and skip one row to allow us to insert a user defined header.
+    df.to_excel(writer, sheet_name='Sheet1', startrow=1, header=False, index=False)
 
-            // Create the drawing and anchor objects
-            XSSFDrawing drawing = sheet.createDrawingPatriarch();
-            XSSFClientAnchor anchor = drawing.createAnchor(0, 0, 0, 0, 0, 5, 10, 15);
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook  = writer.book
+    worksheet = writer.sheets['Sheet1']
 
-            // Create the chart object
-            XSSFChart chart = drawing.createChart(anchor);
-            chart.setTitleText("Error over Time");
-            chart.setTitleOverlay(false);
+    # Get the dimensions of the dataframe.
+    (max_row, max_col) = df.shape
 
-            // Use a line chart
-            XDDFChartLegend legend = chart.getOrAddLegend();
-            legend.setPosition(LegendPosition.TOP_RIGHT);
+    # Create a chart object.
+    chart = workbook.add_chart({'type': 'line'})
 
-            XDDFDataSource<Double> xs = XDDFDataSourcesFactory.fromNumericCellRange(sheet,
-                    new CellRangeAddress(1, dataList.size(), 0, 0));
-            XDDFNumericalDataSource<Double> ys = XDDFDataSourcesFactory.fromNumericCellRange(sheet,
-                    new CellRangeAddress(1, dataList.size(), 1, 1));
+    # Configure the series of the chart from the dataframe data.
+    for i in range(max_col - 1):
+        col = i + 1
+        chart.add_series({
+            'name':       ['Sheet1', 0, col],
+            'categories': ['Sheet1', 2, 0, max_row, 0],
+            'values':     ['Sheet1', 2, col, max_row, col],
+        })
 
-            XDDFLineChartData data = (XDDFLineChartData) chart.createData(ChartTypes.LINE, 
-                    new XDDFCategoryAxis(AxisPosition.BOTTOM), new XDDFValueAxis(AxisPosition.LEFT));
-            data.addSeries(xs, ys);
-            chart.plot(data);
+    # Insert the chart into the worksheet.
+    worksheet.insert_chart('D2', chart)
 
-            // Autosize columns
-            sheet.autoSizeColumn(0);
-            sheet.autoSizeColumn(1);
+    # Add a header format.
+    header_format = workbook.add_format({
+        'bold': True,
+        'text_wrap': True,
+        'valign': 'top',
+        'fg_color': '#D7E4BC',
+        'border': 1})
 
-            // Write the output to a file
-            try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
-                workbook.write(fileOut);
-            }
-        }
-    }
+    # Write the column headers with the defined format.
+    for col_num, value in enumerate(df.columns.values):
+        worksheet.write(0, col_num, value, header_format)
 
-    public static void main(String[] args) {
-        // Example list of data points
-        List<double[]> dataList = List.of(
-                new double[]{0.1, 1.0},
-                new double[]{0.2, 2.0},
-                // ... add more data points
-        );
+    # Close the Pandas Excel writer and output the Excel file.
+    writer.save()
 
-        // Generate the Excel file
-        try {
-            writeToExcel(dataList, "ErrorTimeChart.xlsx");
-            System.out.println("Excel file created successfully.");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-}
+print('Excel file created with chart.')
+
+
+
