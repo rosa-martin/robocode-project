@@ -1,0 +1,98 @@
+<dependencies>
+  <!-- Include the POI library dependency for working with Excel files -->
+  <dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi-ooxml</artifactId>
+    <version>5.2.3</version>
+  </dependency>
+  <!-- Include the dependency for POI OOXML Schemas -->
+  <dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi-ooxml-schemas</artifactId>
+    <version>4.1.2</version>
+  </dependency>
+</dependencies>
+
+
+
+//CODE:
+
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.*;
+import org.apache.poi.xssf.usermodel.*;
+import org.apache.poi.xddf.usermodel.chart.*;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.List;
+
+public class ExcelChartExample {
+
+    public static void writeToExcel(List<double[]> dataList, String fileName) throws IOException {
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet sheet = workbook.createSheet("Data");
+
+            // Create the headers
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Time");
+            header.createCell(1).setCellValue("Error");
+
+            // Populate the data
+            int rowNum = 1;
+            for (double[] data : dataList) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(data[1]); // time
+                row.createCell(1).setCellValue(data[0]); // error
+            }
+
+            // Create the drawing and anchor objects
+            XSSFDrawing drawing = sheet.createDrawingPatriarch();
+            XSSFClientAnchor anchor = drawing.createAnchor(0, 0, 0, 0, 0, 5, 10, 15);
+
+            // Create the chart object
+            XSSFChart chart = drawing.createChart(anchor);
+            chart.setTitleText("Error over Time");
+            chart.setTitleOverlay(false);
+
+            // Use a line chart
+            XDDFChartLegend legend = chart.getOrAddLegend();
+            legend.setPosition(LegendPosition.TOP_RIGHT);
+
+            XDDFDataSource<Double> xs = XDDFDataSourcesFactory.fromNumericCellRange(sheet,
+                    new CellRangeAddress(1, dataList.size(), 0, 0));
+            XDDFNumericalDataSource<Double> ys = XDDFDataSourcesFactory.fromNumericCellRange(sheet,
+                    new CellRangeAddress(1, dataList.size(), 1, 1));
+
+            XDDFLineChartData data = (XDDFLineChartData) chart.createData(ChartTypes.LINE, 
+                    new XDDFCategoryAxis(AxisPosition.BOTTOM), new XDDFValueAxis(AxisPosition.LEFT));
+            data.addSeries(xs, ys);
+            chart.plot(data);
+
+            // Autosize columns
+            sheet.autoSizeColumn(0);
+            sheet.autoSizeColumn(1);
+
+            // Write the output to a file
+            try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
+                workbook.write(fileOut);
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        // Example list of data points
+        List<double[]> dataList = List.of(
+                new double[]{0.1, 1.0},
+                new double[]{0.2, 2.0},
+                // ... add more data points
+        );
+
+        // Generate the Excel file
+        try {
+            writeToExcel(dataList, "ErrorTimeChart.xlsx");
+            System.out.println("Excel file created successfully.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
