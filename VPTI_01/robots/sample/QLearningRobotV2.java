@@ -14,12 +14,12 @@ public class QLearningRobotV2 extends AdvancedRobot {
 
     private static final int MAX_EPISODES = RobocodeRunner.NUM_OF_ROUNDS;       // Number of rounds
     private static final double GAMMA = 0.9;            // How important is the next estimated reward?
-    private static final double ALPHA = 0.1;            // How fast shall we converge? -- The learning rate
+    private static final double ALPHA = RobocodeRunner.ALPHA;            // How fast shall we converge? -- The learning rate
     private static double EPS_START = 1.0;              // Maximal (Starting) Exploration rate
     private static double EPS_END = 0.05;               // Minimal (Ending) Exploration rate
     private static int EPS_DECAY = 1000;                // The exploration decay rate => We are focusing on exploitation more that exploration.
 
-    private static final int NUM_OF_INPUTS = 19;
+    private static final int NUM_OF_INPUTS = RobocodeRunner.NUM_OF_INPUTS;
     private static final int NUM_OF_OUTPUTS = Action.values().length;
     private final static int HEIGHT = 600;
     private final static int WIDTH = 800;
@@ -30,7 +30,8 @@ public class QLearningRobotV2 extends AdvancedRobot {
 
     private double[] lastQValues = new double[NUM_OF_OUTPUTS];
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
-    private int action;
+    private int currentAction;
+    private int lastAction;
 
     private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
 
@@ -55,8 +56,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private static double bulletHitPen = 0.0;
     private static double robotDeathPen = 0.0;
 
-    private MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new ReLU());
-    private MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, GAMMA, new ReLU());
+    
     
     Random rand = new Random();
 
@@ -101,13 +101,13 @@ public class QLearningRobotV2 extends AdvancedRobot {
 
         if (Math.random() < eps_threshold) { 
             out.println("TAKING RANDOM ACTION");
-            action = rand.nextInt(NUM_OF_OUTPUTS);
+            currentAction = rand.nextInt(NUM_OF_OUTPUTS);
         }
         else {
             out.println("TAKING ACTION FROM THE NN");
-            action = getActionWithMaxQValue(qValues);
+            currentAction = getActionWithMaxQValue(qValues);
         }
-        return action;
+        return currentAction;
     }
 
     private int getActionWithMaxQValue(double[] qValues) {
@@ -245,7 +245,7 @@ public void run() {
     setAdjustGunForRobotTurn(true); // Keep the gun still when we turn
     
     for(;;) {
-        executeAction(action);
+        executeAction(currentAction);
     }
 }
 
@@ -447,25 +447,25 @@ public void run() {
         }
         
         //out.println("LAST STATE: "+stringifyField(lastState.toArray()));
-        lastQValues = mainNetwork.execute(lastState.toArray());
+        lastQValues = RobocodeRunner.mainNetwork.execute(lastState.toArray());
         //out.println("LAST Q VALUES: "+stringifyField(lastQValues));
         
-        action = chooseAction(lastQValues);
+        currentAction = chooseAction(lastQValues);
 
-        out.println("ACTION: "+action); 
+        out.println("ACTION: "+currentAction); 
         out.println("REWARD: "+lastReward);
 
         currentState = getCurrentState();
         //out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
-        currentQValues = targetNetwork.execute(currentState.toArray());
+        currentQValues = RobocodeRunner.targetNetwork.execute(currentState.toArray());
         //out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
         double error = 0.0;
         out.println("SIZE OF MEMORY: "+RobocodeRunner.memory.size());
         if(RobocodeRunner.memory.size() < BATCH_SIZE) {
             out.println("USING SINGLE INPUT");
             double maxQ = getMaxQValue(currentQValues);
-            lastQValues[action] = lastQValues[action] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[action]);
-            error = mainNetwork.backPropagate(lastState.toArray(), lastQValues);
+            lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]);
+            error = RobocodeRunner.mainNetwork.backPropagate(lastState.toArray(), lastQValues);
             //out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
         }
         else{
@@ -487,32 +487,33 @@ public void run() {
                 rewards[i] = trainingSet.get(i).getReward();
             }
             
-            lastQs = mainNetwork.executeBatch(lastStates);
-            currentQs = targetNetwork.executeBatch(currentStates);
+            lastQs = RobocodeRunner.mainNetwork.executeBatch(lastStates);
+            currentQs = RobocodeRunner.targetNetwork.executeBatch(currentStates);
             for (int i = 0; i < trainingSet.size(); i++) {
                 maxQs[i] = getMaxQValue(currentQs[i]);
 
                 lastQs[i][actions[i]] = lastQs[i][actions[i]] + ALPHA * (rewards[i] + GAMMA * maxQs[i] - lastQs[i][actions[i]]);
                 //out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
             }
-            error = mainNetwork.batchBackPropagate(lastStates, lastQs);
+            error = RobocodeRunner.mainNetwork.batchBackPropagate(lastStates, lastQs);
         }
         
         out.println("HUBER LOSS: "+error);
         if (RobocodeRunner.memory.size() >= MEMORY_SIZE) {
             RobocodeRunner.memory.remove(0);
         }
-        RobocodeRunner.memory.add(new Sample(lastState, action, lastReward, currentState));
+        RobocodeRunner.memory.add(new Sample(lastState, currentAction, lastReward, currentState));
 
         if (RobocodeRunner.CURRENT_EPISODE % TARGET_UPDATE_FREQ == 0) {
             out.println("COPYING WEIGHTS TO TARGET NETWORK");
-            mainNetwork.copyWeights(targetNetwork);
+            RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.targetNetwork);
         }
         
         RobocodeRunner.CURRENT_EPISODE ++;
         lastEnergy = energy;
 		lastState = currentState;
 		lastReward = currentReward;
+        lastAction = currentAction;
 		currentReward = 0.0;
 	}
 }
