@@ -16,10 +16,19 @@
  */
 package sample;
 
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintStream;
+
+import robocode.RobocodeFileOutputStream;
+import java.nio.ByteBuffer;
+
 
 public class MultiLayerPerceptron implements Cloneable
 {
@@ -27,6 +36,8 @@ public class MultiLayerPerceptron implements Cloneable
 	protected Layer[]			fLayers;
 	protected TransferFunction 	fTransferFunction;
 
+	//private String rootLocation = System.getProperty("user.dir");
+	private String rootLocation = "/home/miggs/coding/java/eclipse-wspace/robocode-project/VPTI_01/robots/sample/QLearningRobotV2.data/";
 	
 	/**
 	 * Crea una rete neuronale mlp
@@ -182,6 +193,30 @@ public class MultiLayerPerceptron implements Cloneable
 				dest.fLayers[k].Neurons[i].Value = fLayers[k].Neurons[i].Value;
 			}
 		}
+	}
+
+	public void saveWeights(String fileName, PrintStream out){
+
+		try{
+			RobocodeFileOutputStream stream = new RobocodeFileOutputStream(rootLocation + "/" + fileName); //change this to the other slash if you're using windows
+			byte[] binD = new byte[8];
+
+			for(int i = 1; i < fLayers.length; i++){
+				for(int j = 0; j < fLayers[i].Length; j++){
+					for(int k = 0; k < fLayers[i].Neurons[j].Weights.length; k++){
+						ByteBuffer.wrap(binD).putDouble(fLayers[i].Neurons[j].Weights[k]);
+						stream.write(binD);
+						ByteBuffer.wrap(binD).putDouble(0);
+					}
+				}
+			}
+			
+			stream.close();
+		} catch (Exception e){
+			//out.println("Location: " + rootLocation);
+			out.println("Error: " + e.getMessage());
+		}
+		
 	}
 	
 	/**
@@ -445,6 +480,18 @@ public class MultiLayerPerceptron implements Cloneable
 	public int getOutputLayerSize()
 	{
 		return fLayers[fLayers.length - 1].Length;
+	}
+
+	public long getNumOfWeights(){
+		long iterator = 0;
+		for(int i = 1; i < fLayers.length; i++){
+			for(int j = 0; j < fLayers[i].Length; j++){
+				for(int k = 0; k < fLayers[i].Neurons[j].Weights.length; k++){
+					iterator++;
+				}
+			}
+		}
+		return iterator;
 	}
 }
 

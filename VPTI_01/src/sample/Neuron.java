@@ -33,4 +33,17 @@ public class Neuron
 		for(int i = 0; i < Weights.length; i++)
 			Weights[i] = Math.random() / 10000000000000.0;
 	}
+
+	public String stringifyWeights(){
+		String res = "[";
+		for(int i = 0; i < Weights.length+1; i++){
+			if(Weights.length - i == 1){
+				res += Weights[i] + "]";
+				break;
+			}
+			res += Weights[i] + ", ";
+		}
+
+		return res;
+	}
 }

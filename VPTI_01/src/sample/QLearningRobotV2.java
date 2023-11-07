@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
+import javax.swing.filechooser.FileSystemView;
+
 import java.awt.Color;
 import tanks.RobocodeRunner;
 import robocode.*;
@@ -243,6 +245,8 @@ public void run() {
     setScanColor(Color.black);
     setBulletColor(Color.black);
     setAdjustGunForRobotTurn(true); // Keep the gun still when we turn
+
+    
     
     for(;;) {
         executeAction(currentAction);
@@ -349,6 +353,11 @@ public void run() {
             hitEnemyPen = -1.5;
         }
     }
+
+    public void onRoundEnded(RoundEndedEvent e){
+        RobocodeRunner.mainNetwork.saveWeights("weights.bin", out);
+        out.println("Weights saved");
+    }
     
     public void onHitByBullet(HitByBulletEvent e) {
         this.bulletBearing = e.getBearing();
@@ -389,6 +398,7 @@ public void run() {
             out.println("INITIAL STATE");
             lastState = getCurrentState();
         }
+
 
 		double energy = e.getStatus().getEnergy();
 		int enemy_count = e.getStatus().getOthers();
@@ -454,6 +464,7 @@ public void run() {
 
         out.println("ACTION: "+currentAction); 
         out.println("REWARD: "+lastReward);
+        //out.println("NUMBER OF WEIGHTS: " + RobocodeRunner.mainNetwork.getNumOfWeights());
 
         currentState = getCurrentState();
         //out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
