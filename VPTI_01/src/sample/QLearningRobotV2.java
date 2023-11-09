@@ -34,6 +34,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int currentAction;
     private int lastAction;
+    private int ctr = 0;
 
     SigmoidalTransfer sigmoid = new SigmoidalTransfer();
 
@@ -108,12 +109,12 @@ public class QLearningRobotV2 extends AdvancedRobot {
             currentAction = rand.nextInt(NUM_OF_OUTPUTS);
         }
         else {
-            if(!zerosCheck(qValues)){
-                currentAction = rand.nextInt(NUM_OF_OUTPUTS);
-            } else {
-                 out.println("TAKING ACTION FROM THE NN");
-                currentAction = getActionWithMaxQValue(qValues);
-            }
+            //if(!zerosCheck(qValues)){
+            //    currentAction = rand.nextInt(NUM_OF_OUTPUTS);
+            //} else {
+            out.println("TAKING ACTION FROM THE NN");
+            currentAction = getActionWithMaxQValue(qValues);
+            //}
         }
         return currentAction;
     }
@@ -273,21 +274,21 @@ public void run() {
     setBulletColor(Color.black);
     setAdjustGunForRobotTurn(true); // Keep the gun still when we turn
 
-    
-    
-    for(;;) {
-        int action = chooseAction(currentQValues);
-        executeAction(action);
+    if(RobocodeRunner.isInitialTurn){
+        RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.weightsHolder);
+        RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.targetNetwork);
+        RobocodeRunner.isInitialTurn = false;
     }
+    
 }
 
     public void onScannedRobot(ScannedRobotEvent e) {
         // Calculate the bearing to the scanned robot
-        this.enemyBearing = sigmoid.evaluate(e.getBearing());
-        this.enemyEnergy = sigmoid.evaluate(e.getEnergy());
+        this.enemyBearing = e.getBearing();
+        this.enemyEnergy = e.getEnergy();
         // Get the distance to the scanned robot
-        this.enemyDistance = sigmoid.evaluate(e.getDistance());
-        this.enemyHeading = sigmoid.evaluate(e.getHeading());
+        this.enemyDistance = e.getDistance();
+        this.enemyHeading = e.getHeading();
         scannedRobotPen = 1;
 
         double radarTurn =
@@ -355,30 +356,30 @@ public void run() {
     private State getCurrentState() {
         // Get our robot's position and heading
          // Get our robot's position and heading
-         double ourX = sigmoid.evaluate(getX());
-         double ourY = sigmoid.evaluate(getY());
-         double ourHeading = sigmoid.evaluate(getHeading());
-         double distRemaining = sigmoid.evaluate(getDistanceRemaining());
-         double ourVelocity = sigmoid.evaluate(getVelocity());
-         double ourEnergy = sigmoid.evaluate(getEnergy());
+         double ourX = getX();
+         double ourY = getY();
+         double ourHeading = getHeading();
+         double distRemaining = getDistanceRemaining();
+         double ourVelocity = getVelocity();
+         double ourEnergy = getEnergy();
          //double ourGunHeat = getGunHeat();
          //double ourGunHeading = getGunHeading();
-         double ourRadarHeading = sigmoid.evaluate(getRadarHeading());
-         double enemyCount = sigmoid.evaluate(getOthers());
-         double scannedRobots = sigmoid.evaluate((double) getScannedRobotEvents().size());
+         double ourRadarHeading = getRadarHeading();
+         double enemyCount = getOthers();
+         double scannedRobots = (double) getScannedRobotEvents().size();
      
          // Get the enemy's bearing and distance from our robot
-         double enemyBearing = sigmoid.evaluate(this.enemyBearing);
-         double enemyDistance = sigmoid.evaluate(this.enemyDistance);
-         double enemyX = sigmoid.evaluate(this.enemyX);
-         double enemyY = sigmoid.evaluate(this.enemyY);
-         double enemyHeading = sigmoid.evaluate(this.enemyHeading);
-         double enemyVelocity = sigmoid.evaluate(this.enemyVelocity);
-         double enemyEnergy = sigmoid.evaluate(this.enemyEnergy);
-         double bulletHeading = sigmoid.evaluate(this.bulletHeading);
-         double bulletBearing = sigmoid.evaluate(this.bulletBearing);
-         double bulletPower = sigmoid.evaluate(this.bulletPower);
-         double bulletVelocity = sigmoid.evaluate(this.bulletVelocity);
+         double enemyBearing = this.enemyBearing;
+         double enemyDistance = this.enemyDistance;
+         double enemyX = this.enemyX;
+         double enemyY = this.enemyY;
+         double enemyHeading = this.enemyHeading;
+         double enemyVelocity = this.enemyVelocity;
+         double enemyEnergy = this.enemyEnergy;
+         double bulletHeading = this.bulletHeading;
+         double bulletBearing = this.bulletBearing;
+         double bulletPower = this.bulletPower;
+         double bulletVelocity = this.bulletVelocity;
      
          // Return a new State object with these values
          return new State(ourX, ourY, ourHeading, distRemaining, ourVelocity, ourEnergy, ourRadarHeading, enemyCount, scannedRobots, enemyBearing,
@@ -386,56 +387,56 @@ public void run() {
     }
     
     public void onHitWall(HitWallEvent e) {
-    	hitWallPen = -5.0;
+    	hitWallPen = -50;
         //moveDirection = -moveDirection;
     }
     
     public void onHitRobot(HitRobotEvent e) {
         if (e.getEnergy() < 10){
-            hitEnemyPen = 1.5;
+            hitEnemyPen = 15;
         }
         else {
-            hitEnemyPen = -1.5;
+            hitEnemyPen = -15;
         }
     }
 
     public void onRoundEnded(RoundEndedEvent e){
-        RobocodeRunner.mainNetwork.saveWeights("weights", out);
-        out.println("Weights saved");
+        //RobocodeRunner.mainNetwork.saveWeights("weights", out);
+        //out.println("Weights saved");
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
-        this.bulletBearing = sigmoid.evaluate(e.getBearing());
-        this.bulletHeading = sigmoid.evaluate(e.getHeading());
-        this.bulletVelocity = sigmoid.evaluate(e.getVelocity());
-        this.bulletPower = sigmoid.evaluate(e.getPower());
+        this.bulletBearing = e.getBearing();
+        this.bulletHeading = e.getHeading();
+        this.bulletVelocity = e.getVelocity();
+        this.bulletPower = e.getPower();
 
         if (this.bulletPower > 2) {
-            hitByBullet = -5.0;
+            hitByBullet = -50;
         }
         else {
-            hitByBullet = -2.5;
+            hitByBullet = -25;
         }
     }
 
     public void onBulletMissed(BulletMissedEvent e) {
-    	bulletMissedPen = -0.5;
+    	bulletMissedPen = -5;
     }
 
     public void onBulletHit(BulletHitEvent e) {
         if (e.getBullet().getPower()>=2){
-            bulletHitPen = 4;
+            bulletHitPen = 40;
         }
     	else {
-            bulletHitPen = 2;
+            bulletHitPen = 20;
         }
         if(e.getEnergy() <= 0){
-            bulletHitPen = 7;
+            bulletHitPen = 70;
         }
     }
 
     public void onRobotDeathEvent(RobotDeathEvent e){
-        robotDeathPen = 2;
+        robotDeathPen = 20;
     }
 
     public void onStatus(StatusEvent e) {
@@ -452,7 +453,7 @@ public void run() {
 
         if (lastEnergy > energy)
         {
-            currentReward += -1.5;
+            currentReward += -15;
         }
 		if(hitWallPen!=0.0) {
 			currentReward += hitWallPen;
@@ -494,12 +495,12 @@ public void run() {
         */
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             //out.println("We have reached the threshold");
-            currentReward += -0.5;
+            currentReward += -5;
             if (this.getDistanceRemaining() < THRESHOLD) {
                 //out.println("We are moving towards the wall.");
-                currentReward += -1;
+                currentReward += -10;
             } else {
-                currentReward += 1;
+                currentReward += 10;
             }
         }
         
@@ -508,6 +509,7 @@ public void run() {
         out.println("LAST Q VALUES: "+stringifyField(lastQValues));
         
         currentAction = chooseAction(lastQValues);
+        executeAction(currentAction);
 
         out.println("ACTION: "+currentAction); 
         out.println("REWARD: "+lastReward);
@@ -520,10 +522,10 @@ public void run() {
         double error = 0.0;
         out.println("SIZE OF MEMORY: "+RobocodeRunner.memory.size());
         //if(RobocodeRunner.memory.size() < BATCH_SIZE) {
-        out.println("USING SINGLE INPUT");
+        //out.println("USING SINGLE INPUT");
         double maxQ = getMaxQValue(currentQValues);
-        lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]);
-        error = RobocodeRunner.mainNetwork.backPropagate2(lastState.toArray(), currentAction, lastReward + GAMMA * maxQ); //TODO: make this work
+        lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]); //bellman
+        error = RobocodeRunner.mainNetwork.backPropagate(lastState.toArray(), lastQValues); 
         out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
         //}
         //else{
@@ -563,10 +565,18 @@ public void run() {
         RobocodeRunner.memory.add(new Sample(lastState, currentAction, lastReward, currentState));
 
         if (RobocodeRunner.CURRENT_EPISODE % TARGET_UPDATE_FREQ == 0) {
-            out.println("COPYING WEIGHTS TO TARGET NETWORK");
-            RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.targetNetwork);
+            out.println("COPYING WEIGHTS TO TMP NETWORK");
+            RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.weightsHolder);
+
+            if(ctr % 2 == 0){
+                out.println("COPYTING WEIGHTS TO TARGET NETWORK");
+                RobocodeRunner.weightsHolder.copyWeights(RobocodeRunner.targetNetwork);
+            }
+            ctr++;
         }
+
         
+
         RobocodeRunner.CURRENT_EPISODE ++;
         lastEnergy = energy;
 		lastState = currentState;

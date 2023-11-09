@@ -29,12 +29,15 @@ public class RobocodeRunner {
 	
 	public static MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, ALPHA, new ReLU());
     public static MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, ALPHA, new ReLU());
+	public static MultiLayerPerceptron weightsHolder = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, ALPHA, new ReLU());
 
 	public static int NUM_OF_ROUNDS = 1000;
 	public static int CURRENT_EPISODE = 0;
 	public static int STEPS_DONE = 0;                  // How many times we have made a decision
 	// THIS SHOULD DO IT
     public static ArrayList<Sample> memory = new ArrayList<Sample>();
+
+	public static boolean isInitialTurn = true;
 
 	public static void main(String[] args) throws IOException {
 		String nazevTridyMehoRobota = "QLearningRobotV2";
