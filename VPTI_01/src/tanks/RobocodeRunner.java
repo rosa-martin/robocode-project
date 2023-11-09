@@ -16,6 +16,7 @@ import robocode.control.RobocodeEngine;
 import robocode.control.RobotSpecification;
 import sample.ReLU;
 import sample.Sample;
+import sample.SigmoidalTransfer;
 import sample.MultiLayerPerceptron;
 import sample.QLearningRobotV2;
 

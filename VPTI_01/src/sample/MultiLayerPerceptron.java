@@ -40,6 +40,9 @@ public class MultiLayerPerceptron implements Cloneable
 	protected TransferFunction 	fTransferFunction;
 	private long numOfWeights = 0;
 
+	private double[] currY;
+	private double[] formerY = null;
+
 	//private String rootLocation = System.getProperty("user.dir");
 	private String rootLocation = "/home/miggs/coding/java/eclipse-wspace/robocode-project/VPTI_01/robots/sample/QLearningRobotV2.data/";
 	
@@ -116,7 +119,7 @@ public class MultiLayerPerceptron implements Cloneable
 			output[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
 		}
 
-		output = softmax(output);
+		//output = softmax(output);
 		
 		return output;
 	}
@@ -317,13 +320,19 @@ public class MultiLayerPerceptron implements Cloneable
 		}	
 		
 		// Calcoliamo l'errore 
+		currY = new_output;
 		error = huberLoss(new_output, output, 1.0);
+		formerY = currY;
 		
 		return error;
 	}
 	
 	public static double huberLoss(double[] y, double[] y_pred, double delta) {
 		double error = 0;
+		//if(QLearningRobotV2.zerosCheck(y) == true && QLearningRobotV2.zerosCheck(y_pred) == true){
+		//		return Double.MAX_VALUE;
+		//}
+
 		for (int i = 0; i < y.length; i++) {
 			double diff = y[i] - y_pred[i];
 			if (Math.abs(diff) <= delta) {
@@ -332,7 +341,26 @@ public class MultiLayerPerceptron implements Cloneable
 				error += delta * (Math.abs(diff) - 0.5 * delta);
 			}
 		}
+
+		//error += closeToZeroPenalization(y, y_pred) / 2;
+
 		return error;
+	}
+
+	public static double closeToZeroPenalization(double[] currY, double[] formerY){
+		if(formerY == null){
+			return 0;
+		} else {
+			double currSum = 0;
+			double formerSum = 0;
+			for(int i = 0; i < currY.length; i++){
+				currSum += currY[i];
+				formerSum += formerY[i];
+			}
+			currSum /= currY.length;
+			formerSum /= formerY.length; 
+			return -(currSum - formerSum);
+		}
 	}
 
 	public double batchBackPropagate(double[][] inputs, double[][] outputs)

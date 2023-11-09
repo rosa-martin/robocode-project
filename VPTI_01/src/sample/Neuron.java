@@ -26,12 +26,12 @@ public class Neuron
 	public Neuron(int prevLayerSize)
 	{
 		Weights = new double[prevLayerSize];
-		Bias = Math.random() / 10000000000000.0;
-		Delta = Math.random() / 10000000000000.0;
-		Value = Math.random() / 10000000000000.0;
+		Bias = Math.random();
+		Delta = Math.random();
+		Value = Math.random();
 		
 		for(int i = 0; i < Weights.length; i++)
-			Weights[i] = Math.random() / 10000000000000.0;
+			Weights[i] = Math.random();
 	}
 
 	public String stringifyWeights(){

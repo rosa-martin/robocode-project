@@ -28,12 +28,14 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private final static double THRESHOLD = 50.0;
     private final static int TARGET_UPDATE_FREQ = 100;
     private final static int BATCH_SIZE = 30;
-    private final static int MEMORY_SIZE = 7500;
+    private final static int MEMORY_SIZE = 2500;
 
     private double[] lastQValues = new double[NUM_OF_OUTPUTS];
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int currentAction;
     private int lastAction;
+
+    SigmoidalTransfer sigmoid = new SigmoidalTransfer();
 
     private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
 
@@ -106,16 +108,22 @@ public class QLearningRobotV2 extends AdvancedRobot {
             currentAction = rand.nextInt(NUM_OF_OUTPUTS);
         }
         else {
-            out.println("TAKING ACTION FROM THE NN");
-            currentAction = getActionWithMaxQValue(qValues);
+            if(!zerosCheck(qValues)){
+                currentAction = rand.nextInt(NUM_OF_OUTPUTS);
+            } else {
+                 out.println("TAKING ACTION FROM THE NN");
+                currentAction = getActionWithMaxQValue(qValues);
+            }
         }
         return currentAction;
     }
 
     private int getActionWithMaxQValue(double[] qValues) {
         int maxIndex = 0;
+        double maxVal = 0;
         for (int i = 0; i < qValues.length; i++) {
-            if (qValues[i] > qValues[maxIndex]) {
+            if (qValues[i] > maxVal) {
+                maxVal = qValues[i];
                 maxIndex = i;
             }
         }
@@ -268,17 +276,18 @@ public void run() {
     
     
     for(;;) {
-        executeAction(currentAction);
+        int action = chooseAction(currentQValues);
+        executeAction(action);
     }
 }
 
     public void onScannedRobot(ScannedRobotEvent e) {
         // Calculate the bearing to the scanned robot
-        this.enemyBearing = e.getBearing();
-        this.enemyEnergy = e.getEnergy();
+        this.enemyBearing = sigmoid.evaluate(e.getBearing());
+        this.enemyEnergy = sigmoid.evaluate(e.getEnergy());
         // Get the distance to the scanned robot
-        this.enemyDistance = e.getDistance();
-        this.enemyHeading = e.getHeading();
+        this.enemyDistance = sigmoid.evaluate(e.getDistance());
+        this.enemyHeading = sigmoid.evaluate(e.getHeading());
         scannedRobotPen = 1;
 
         double radarTurn =
@@ -335,34 +344,41 @@ public void run() {
         return Math.min(max, Math.max(min, value));
     }
     
+    public static boolean zerosCheck(double[] arr) {
+		for(Double d: arr){
+			if(!d.equals(0.0))
+				return false;
+		}
+		return true;
+	}
 
     private State getCurrentState() {
         // Get our robot's position and heading
          // Get our robot's position and heading
-         double ourX = getX();
-         double ourY = getY();
-         double ourHeading = getHeading();
-         double distRemaining = getDistanceRemaining();
-         double ourVelocity = getVelocity();
-         double ourEnergy = getEnergy();
+         double ourX = sigmoid.evaluate(getX());
+         double ourY = sigmoid.evaluate(getY());
+         double ourHeading = sigmoid.evaluate(getHeading());
+         double distRemaining = sigmoid.evaluate(getDistanceRemaining());
+         double ourVelocity = sigmoid.evaluate(getVelocity());
+         double ourEnergy = sigmoid.evaluate(getEnergy());
          //double ourGunHeat = getGunHeat();
          //double ourGunHeading = getGunHeading();
-         double ourRadarHeading = getRadarHeading();
-         double enemyCount = getOthers();
-         double scannedRobots = (double) getScannedRobotEvents().size();
+         double ourRadarHeading = sigmoid.evaluate(getRadarHeading());
+         double enemyCount = sigmoid.evaluate(getOthers());
+         double scannedRobots = sigmoid.evaluate((double) getScannedRobotEvents().size());
      
          // Get the enemy's bearing and distance from our robot
-         double enemyBearing = this.enemyBearing;
-         double enemyDistance = this.enemyDistance;
-         double enemyX = this.enemyX;
-         double enemyY = this.enemyY;
-         double enemyHeading = this.enemyHeading;
-         double enemyVelocity = this.enemyVelocity;
-         double enemyEnergy = this.enemyEnergy;
-         double bulletHeading = this.bulletHeading;
-         double bulletBearing = this.bulletBearing;
-         double bulletPower = this.bulletPower;
-         double bulletVelocity = this.bulletVelocity;
+         double enemyBearing = sigmoid.evaluate(this.enemyBearing);
+         double enemyDistance = sigmoid.evaluate(this.enemyDistance);
+         double enemyX = sigmoid.evaluate(this.enemyX);
+         double enemyY = sigmoid.evaluate(this.enemyY);
+         double enemyHeading = sigmoid.evaluate(this.enemyHeading);
+         double enemyVelocity = sigmoid.evaluate(this.enemyVelocity);
+         double enemyEnergy = sigmoid.evaluate(this.enemyEnergy);
+         double bulletHeading = sigmoid.evaluate(this.bulletHeading);
+         double bulletBearing = sigmoid.evaluate(this.bulletBearing);
+         double bulletPower = sigmoid.evaluate(this.bulletPower);
+         double bulletVelocity = sigmoid.evaluate(this.bulletVelocity);
      
          // Return a new State object with these values
          return new State(ourX, ourY, ourHeading, distRemaining, ourVelocity, ourEnergy, ourRadarHeading, enemyCount, scannedRobots, enemyBearing,
@@ -389,10 +405,10 @@ public void run() {
     }
     
     public void onHitByBullet(HitByBulletEvent e) {
-        this.bulletBearing = e.getBearing();
-        this.bulletHeading = e.getHeading();
-        this.bulletVelocity = e.getVelocity();
-        this.bulletPower = e.getPower();
+        this.bulletBearing = sigmoid.evaluate(e.getBearing());
+        this.bulletHeading = sigmoid.evaluate(e.getHeading());
+        this.bulletVelocity = sigmoid.evaluate(e.getVelocity());
+        this.bulletPower = sigmoid.evaluate(e.getPower());
 
         if (this.bulletPower > 2) {
             hitByBullet = -5.0;
@@ -503,42 +519,42 @@ public void run() {
         out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
         double error = 0.0;
         out.println("SIZE OF MEMORY: "+RobocodeRunner.memory.size());
-        if(RobocodeRunner.memory.size() < BATCH_SIZE) {
-            out.println("USING SINGLE INPUT");
-            double maxQ = getMaxQValue(currentQValues);
-            lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]);
-            error = RobocodeRunner.mainNetwork.backPropagate(lastState.toArray(), lastQValues);
-            //out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
-        }
-        else{
-            out.println("USING BATCH INPUT");
-            ArrayList<Sample> trainingSet = getSamples(BATCH_SIZE);
-            double[][] lastStates = new double[trainingSet.size()][NUM_OF_INPUTS];
-            double[][] currentStates = new double[trainingSet.size()][NUM_OF_INPUTS];
-            int[] actions = new int[trainingSet.size()];
-            double[] rewards = new double[trainingSet.size()];
-
-            double[][] lastQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
-            double[][] currentQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
-            double[] maxQs = new double[trainingSet.size()];
-
-            for (int i = 0; i < trainingSet.size(); i++) {
-                lastStates[i] = trainingSet.get(i).getLastState().toArray();
-                currentStates[i] = trainingSet.get(i).getCurrentState().toArray();
-                actions[i] = trainingSet.get(i).getAction();
-                rewards[i] = trainingSet.get(i).getReward();
-            }
-            
-            lastQs = RobocodeRunner.mainNetwork.executeBatch(lastStates);
-            currentQs = RobocodeRunner.targetNetwork.executeBatch(currentStates);
-            for (int i = 0; i < trainingSet.size(); i++) {
-                maxQs[i] = getMaxQValue(currentQs[i]);
-
-                lastQs[i][actions[i]] = lastQs[i][actions[i]] + ALPHA * (rewards[i] + GAMMA * maxQs[i] - lastQs[i][actions[i]]);
-                out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
-            }
-            error = RobocodeRunner.mainNetwork.batchBackPropagate(lastStates, lastQs);
-        }
+        //if(RobocodeRunner.memory.size() < BATCH_SIZE) {
+        out.println("USING SINGLE INPUT");
+        double maxQ = getMaxQValue(currentQValues);
+        lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]);
+        error = RobocodeRunner.mainNetwork.backPropagate(lastState.toArray()[currentAction], lastReward + GAMMA * maxQ); //TODO: make this work
+        out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
+        //}
+        //else{
+        //    out.println("USING BATCH INPUT");
+        //    ArrayList<Sample> trainingSet = getSamples(BATCH_SIZE);
+        //    double[][] lastStates = new double[trainingSet.size()][NUM_OF_INPUTS];
+        //    double[][] currentStates = new double[trainingSet.size()][NUM_OF_INPUTS];
+        //    int[] actions = new int[trainingSet.size()];
+        //    double[] rewards = new double[trainingSet.size()];
+//
+        //    double[][] lastQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
+        //    double[][] currentQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
+        //    double[] maxQs = new double[trainingSet.size()];
+//
+        //    for (int i = 0; i < trainingSet.size(); i++) {
+        //        lastStates[i] = trainingSet.get(i).getLastState().toArray();
+        //        currentStates[i] = trainingSet.get(i).getCurrentState().toArray();
+        //        actions[i] = trainingSet.get(i).getAction();
+        //        rewards[i] = trainingSet.get(i).getReward();
+        //    }
+        //    
+        //    lastQs = RobocodeRunner.mainNetwork.executeBatch(lastStates);
+        //    currentQs = RobocodeRunner.targetNetwork.executeBatch(currentStates);
+        //    for (int i = 0; i < trainingSet.size(); i++) {
+        //        maxQs[i] = getMaxQValue(currentQs[i]);
+//
+        //        lastQs[i][actions[i]] = lastQs[i][actions[i]] + ALPHA * (rewards[i] + GAMMA * maxQs[i] - lastQs[i][actions[i]]);
+        //        //out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
+        //    }
+            //error = RobocodeRunner.mainNetwork.batchBackPropagate(lastStates, lastQs);
+        //}
         
         out.println("HUBER LOSS: "+error);
         if (RobocodeRunner.memory.size() >= MEMORY_SIZE) {
