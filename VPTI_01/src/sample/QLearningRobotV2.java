@@ -76,20 +76,18 @@ public class QLearningRobotV2 extends AdvancedRobot {
         MOVE_BACKWARD, // Move backward
         TURN_LEFT, // Turn left
         TURN_RIGHT, // Turn right
-        /*
         TURN_RADAR_LEFT, // Turn radar left
         TURN_RADAR_RIGHT, // Turn radar right
         TURN_GUN_LEFT, // Turn gun left
         TURN_GUN_RIGHT, // Turn gun right
-        */
         SLOW_DOWN, // Slow down
         FASTER, // Increase the velocity
         SPIN_RADAR, // Do a radar spin
-        DO_NOTHING; // Do nothing
-        /*
-        BATCH_FIRE, // Fire a batch of bullets
+        DO_NOTHING, // self-explanatory
+        LOCK_RADAR, //lock radar on certain position
+        LOCK_GUN, // Do nothing
         FIRE; // Fire
-        */
+
         public int getIndex() {
             return this.ordinal();
         }
@@ -138,54 +136,69 @@ public class QLearningRobotV2 extends AdvancedRobot {
         Action action = Action.fromIndex(actionIndex);
         switch (action) {
             case MOVE_FORWARD:
-                setAhead(40); // Move forward by 40 pixels
-                out.println("Move forward");
+                out.println("MOVE_FORWARD");
+                currentAction = 0;
+                setAhead(45); // Move forward by 45 pixels
                 break;
             case MOVE_BACKWARD:
-                setBack(40); // Move backward by 40 pixels
-                out.println("Move back");
+                out.println("MOVE_BACKWARD");
+                currentAction = 1;
+                setBack(45); // Move backward by 45 pixels
                 break;
             case TURN_LEFT:
-                setTurnLeft(30); // Turn left by 30 degrees
-                out.println("Turn left");
+                out.println("TURN_LEFT");
+                currentAction = 2;
+                setTurnLeft(45); // Turn left by 45 degrees
                 break;
             case TURN_RIGHT:
-                setTurnRight(30); // Turn right by 30 degrees
-                out.println("Turn right");
+                out.println("TURN_RIGHT");
+                currentAction = 3;
+                setTurnRight(45); // Turn right by 45 degrees
                 break;
-            /*
             case TURN_RADAR_LEFT:
-                setTurnRadarLeft(90); // Turn left by 90 degrees
+                out.println("TURN_RADAR_LEFT");
+                currentAction = 4;
+                setTurnRadarLeft(45); // Turn radar left by 45 degrees
                 break;
             case TURN_RADAR_RIGHT:
-                setTurnRadarRight(90); // Turn right by 90 degrees
+                out.println("TURN_RADAR_RIGHT");
+                currentAction = 5;
+                setTurnRadarRight(45); // Turn radar right by 45 degrees
                 break;
             case TURN_GUN_LEFT:
-                setTurnGunLeft(30); // Turn left by 30 degrees
+                out.println("TURN_GUN_LEFT");
+                currentAction = 6;
+                setTurnGunLeft(45); // Turn gun left by 45 degrees
                 break;
             case TURN_GUN_RIGHT:
-                setTurnGunRight(30); // Turn right by 30 degrees
+                out.println("TURN_GUN_RIGHT");
+                currentAction = 7;
+                setTurnGunRight(45); // Turn gun right by 45 degrees
                 break;
-            */
             case SLOW_DOWN:
-                setMaxVelocity(Rules.MAX_VELOCITY/2*speedIndex); // Slow down
+                out.println("SLOW_DOWN");
+                currentAction = 8;
+                setMaxVelocity(Rules.MAX_VELOCITY/(2*speedIndex)); // Slow down
                 speedIndex++;
-                out.println("Slow down");
                 break;
             case FASTER:
+                out.println("FASTER");
+                currentAction = 9;
                 setMaxVelocity(Rules.MAX_VELOCITY); // Increase the velocity
-                out.println("Faster");
                 break;
             case SPIN_RADAR:
-                setTurnRadarRight(360); // Do a radar spin
-                out.println("Spin radar");
+                out.println("SPIN_RADAR");
+                currentAction = 10;
+                setTurnRadarRight(Double.POSITIVE_INFINITY); // Do a radar spin
                 break;
             case DO_NOTHING:
+                out.println("DO_NOTHING");
+                currentAction = 11;
                 doNothing(); // Do nothing
-                out.println("Do nothing");
                 break;
-            /*
             case FIRE:
+                out.println("FIRE");
+                currentAction = 12;
                 if (enemyDistance <= 80)
                 {
                     fire(Rules.MAX_BULLET_POWER); // Fire a huge bullet
@@ -195,23 +208,18 @@ public class QLearningRobotV2 extends AdvancedRobot {
                     fire(Rules.MAX_BULLET_POWER/2);
                 }
                 break;
-            case BATCH_FIRE:
-                if (enemyDistance <= 80)
-                {
-                    for (int i = 0; i < 3; i++){
-                        fire(Rules.MAX_BULLET_POWER);   // Fire a batch of heavy bullets
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < 3; i++){
-                        fire(Rules.MAX_BULLET_POWER/2); // Fire a batch of bullets
-                    }
-                }
+            case LOCK_RADAR:
+                out.println("LOCK_RADAR");
+                currentAction = 13;
+                setTurnRadarLeftRadians(getRadarTurnRemainingRadians());
                 break;
-            */
-        }
-        execute(); // Executes all pending commands
+            case LOCK_GUN:
+                out.println("LOCK_GUN");
+                currentAction = 14;
+                setTurnGunLeftRadians(getGunTurnRemainingRadians());
+                break;
+            }
+            execute(); // Executes all pending commands
     }    
     
     public static String stringifyField(double[] field){
@@ -272,6 +280,14 @@ public void run() {
         this.enemyDistance = e.getDistance();
         this.enemyHeading = e.getHeading();
         scannedRobotPen = 1;
+
+        double radarTurn =
+        // Absolute bearing to target
+        getHeadingRadians() + e.getBearingRadians()
+        // Subtract current radar heading to get turn required
+        - getRadarHeadingRadians();
+
+        setTurnRadarRightRadians(Utils.normalRelativeAngle(radarTurn));
 	
 //		************************************************************
 //		*******Source: http://robowiki.net/wiki/Linear_Targeting
@@ -322,33 +338,35 @@ public void run() {
 
     private State getCurrentState() {
         // Get our robot's position and heading
-        double ourX = getX();
-        double ourY = getY();
-        double ourHeading = getHeading();
-        double ourVelocity = getVelocity();
-        double ourEnergy = getEnergy();
-        //double ourGunHeat = getGunHeat();
-        //double ourGunHeading = getGunHeading();
-        double ourRadarHeading = getRadarHeading();
-        double enemyCount = getOthers();
-        double scannedRobots = (double) getScannedRobotEvents().size();
-    
-        // Get the enemy's bearing and distance from our robot
-        double enemyBearing = this.enemyBearing;
-        double enemyDistance = this.enemyDistance;
-        double enemyX = this.enemyX;
-        double enemyY = this.enemyY;
-        double enemyHeading = this.enemyHeading;
-        double enemyVelocity = this.enemyVelocity;
-        double enemyEnergy = this.enemyEnergy;
-        double bulletHeading = this.bulletHeading;
-        double bulletBearing = this.bulletBearing;
-        double bulletPower = this.bulletPower;
-        double bulletVelocity = this.bulletVelocity;
-    
-        // Return a new State object with these values
-        return new State(ourX, ourY, ourHeading, ourVelocity, ourEnergy, ourRadarHeading, enemyCount, scannedRobots, enemyBearing,
-        enemyDistance, enemyX, enemyY, enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
+         // Get our robot's position and heading
+         double ourX = getX();
+         double ourY = getY();
+         double ourHeading = getHeading();
+         double distRemaining = getDistanceRemaining();
+         double ourVelocity = getVelocity();
+         double ourEnergy = getEnergy();
+         //double ourGunHeat = getGunHeat();
+         //double ourGunHeading = getGunHeading();
+         double ourRadarHeading = getRadarHeading();
+         double enemyCount = getOthers();
+         double scannedRobots = (double) getScannedRobotEvents().size();
+     
+         // Get the enemy's bearing and distance from our robot
+         double enemyBearing = this.enemyBearing;
+         double enemyDistance = this.enemyDistance;
+         double enemyX = this.enemyX;
+         double enemyY = this.enemyY;
+         double enemyHeading = this.enemyHeading;
+         double enemyVelocity = this.enemyVelocity;
+         double enemyEnergy = this.enemyEnergy;
+         double bulletHeading = this.bulletHeading;
+         double bulletBearing = this.bulletBearing;
+         double bulletPower = this.bulletPower;
+         double bulletVelocity = this.bulletVelocity;
+     
+         // Return a new State object with these values
+         return new State(ourX, ourY, ourHeading, distRemaining, ourVelocity, ourEnergy, ourRadarHeading, enemyCount, scannedRobots, enemyBearing,
+         enemyDistance, enemyX, enemyY, enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
     }
     
     public void onHitWall(HitWallEvent e) {
@@ -390,18 +408,18 @@ public void run() {
 
     public void onBulletHit(BulletHitEvent e) {
         if (e.getBullet().getPower()>=2){
-            bulletHitPen = 5;
+            bulletHitPen = 4;
         }
     	else {
-            bulletHitPen = 2.5;
+            bulletHitPen = 2;
         }
         if(e.getEnergy() <= 0){
-            bulletHitPen = 10;
+            bulletHitPen = 7;
         }
     }
 
     public void onRobotDeathEvent(RobotDeathEvent e){
-        robotDeathPen = 2.5;
+        robotDeathPen = 2;
     }
 
     public void onStatus(StatusEvent e) {
@@ -448,7 +466,7 @@ public void run() {
 			currentReward += robotDeathPen;
 			robotDeathPen = 0.0;
 		}
-        
+        /* 
 		if (energy > 0 && enemies_dead > 0)
 		{
 			currentReward += 1.5;
@@ -457,13 +475,15 @@ public void run() {
 		{
 			currentReward += 3;
 		}
-        
+        */
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             //out.println("We have reached the threshold");
-            //reward -= 5;
+            currentReward += -0.5;
             if (this.getDistanceRemaining() < THRESHOLD) {
                 //out.println("We are moving towards the wall.");
                 currentReward += -1;
+            } else {
+                currentReward += 1;
             }
         }
         

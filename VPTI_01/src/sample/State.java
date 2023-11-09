@@ -4,6 +4,7 @@ public class State {
     private double x; // The robot's x position
     private double y; // The robot's y position
     private double heading; // The robot's heading in degrees
+    private double distRemaining;
     private double velocity; // The robot's velocity
     private double energy; // The robot's energy
     private double enemyBearing; // The bearing to the enemy from the robot's heading
@@ -23,12 +24,13 @@ public class State {
     private double bulletPower;
     private double bulletVelocity;
 
-    public State(double x, double y, double heading, double velocity, double energy, double radarHeading, double enemyCount, double scannedRobots,
+    public State(double x, double y, double heading, double distRemaining, double velocity, double energy, double radarHeading, double enemyCount, double scannedRobots,
      double enemyBearing, double enemyDistance, double enemyX, double enemyY, double enemyHeading, double enemyVelocity, double enemyEnergy, 
      double bulletHeading, double bulletBearing, double bulletPower, double bulletVelocity) {
         this.x = Math.rint(x);
         this.y = Math.rint(y);
         this.heading = Math.rint(heading);
+        this.distRemaining = Math.rint(distRemaining);
         this.velocity = Math.rint(velocity);
         this.energy = Math.rint(energy);
         this.enemyBearing = Math.rint(enemyBearing);
@@ -50,7 +52,7 @@ public class State {
     }
 
     public double[] toArray() {
-        return new double[]{x, y, heading, velocity, energy, radarHeading, enemyCount, scannedRobots, enemyBearing, enemyDistance, enemyX, enemyY,
+        return new double[]{x, y, heading, distRemaining, velocity, energy, radarHeading, enemyCount, scannedRobots, enemyBearing, enemyDistance, enemyX, enemyY,
             enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity};
     }
 
