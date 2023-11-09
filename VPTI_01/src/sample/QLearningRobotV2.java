@@ -49,6 +49,8 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private double bulletVelocity;
     private double bulletPower; 
     private double scannedRobots;
+    
+    private double speedIndex = 1;
 
     private static double hitWallPen = 0.0;
 	private static double hitByBullet = 0.0;
@@ -137,15 +139,19 @@ public class QLearningRobotV2 extends AdvancedRobot {
         switch (action) {
             case MOVE_FORWARD:
                 setAhead(40); // Move forward by 40 pixels
+                out.println("Move forward");
                 break;
             case MOVE_BACKWARD:
                 setBack(40); // Move backward by 40 pixels
+                out.println("Move back");
                 break;
             case TURN_LEFT:
                 setTurnLeft(30); // Turn left by 30 degrees
+                out.println("Turn left");
                 break;
             case TURN_RIGHT:
                 setTurnRight(30); // Turn right by 30 degrees
+                out.println("Turn right");
                 break;
             /*
             case TURN_RADAR_LEFT:
@@ -162,16 +168,21 @@ public class QLearningRobotV2 extends AdvancedRobot {
                 break;
             */
             case SLOW_DOWN:
-                setMaxVelocity(this.getVelocity()/2); // Slow down
+                setMaxVelocity(Rules.MAX_VELOCITY/2*speedIndex); // Slow down
+                speedIndex++;
+                out.println("Slow down");
                 break;
             case FASTER:
-                setMaxVelocity(this.getVelocity()*2); // Increase the velocity
+                setMaxVelocity(Rules.MAX_VELOCITY); // Increase the velocity
+                out.println("Faster");
                 break;
             case SPIN_RADAR:
                 setTurnRadarRight(360); // Do a radar spin
+                out.println("Spin radar");
                 break;
             case DO_NOTHING:
                 doNothing(); // Do nothing
+                out.println("Do nothing");
                 break;
             /*
             case FIRE:
@@ -355,7 +366,7 @@ public void run() {
     }
 
     public void onRoundEnded(RoundEndedEvent e){
-        RobocodeRunner.mainNetwork.saveWeights("weights.bin", out);
+        RobocodeRunner.mainNetwork.saveWeights("weights", out);
         out.println("Weights saved");
     }
     
@@ -458,7 +469,7 @@ public void run() {
         
         //out.println("LAST STATE: "+stringifyField(lastState.toArray()));
         lastQValues = RobocodeRunner.mainNetwork.execute(lastState.toArray());
-        //out.println("LAST Q VALUES: "+stringifyField(lastQValues));
+        out.println("LAST Q VALUES: "+stringifyField(lastQValues));
         
         currentAction = chooseAction(lastQValues);
 
@@ -469,7 +480,7 @@ public void run() {
         currentState = getCurrentState();
         //out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
         currentQValues = RobocodeRunner.targetNetwork.execute(currentState.toArray());
-        //out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
+        out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
         double error = 0.0;
         out.println("SIZE OF MEMORY: "+RobocodeRunner.memory.size());
         if(RobocodeRunner.memory.size() < BATCH_SIZE) {
@@ -504,7 +515,7 @@ public void run() {
                 maxQs[i] = getMaxQValue(currentQs[i]);
 
                 lastQs[i][actions[i]] = lastQs[i][actions[i]] + ALPHA * (rewards[i] + GAMMA * maxQs[i] - lastQs[i][actions[i]]);
-                //out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
+                out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
             }
             error = RobocodeRunner.mainNetwork.batchBackPropagate(lastStates, lastQs);
         }

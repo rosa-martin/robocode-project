@@ -28,13 +28,17 @@ import java.io.PrintStream;
 
 import robocode.RobocodeFileOutputStream;
 import java.nio.ByteBuffer;
+import java.util.LinkedList;
+import java.util.List;
 
+import net.sf.robocode.io.Logger;
 
 public class MultiLayerPerceptron implements Cloneable
 {
 	protected double			fLearningRate = 0.6;
 	protected Layer[]			fLayers;
 	protected TransferFunction 	fTransferFunction;
+	private long numOfWeights = 0;
 
 	//private String rootLocation = System.getProperty("user.dir");
 	private String rootLocation = "/home/miggs/coding/java/eclipse-wspace/robocode-project/VPTI_01/robots/sample/QLearningRobotV2.data/";
@@ -64,6 +68,8 @@ public class MultiLayerPerceptron implements Cloneable
 				fLayers[i] = new Layer(layers[i], 0);
 			}
 		}
+
+		numOfWeights = this.getNumOfWeights();
 	}
 	
 
@@ -110,7 +116,7 @@ public class MultiLayerPerceptron implements Cloneable
 			output[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
 		}
 
-		//output = softmax(output);
+		output = softmax(output);
 		
 		return output;
 	}
@@ -198,23 +204,33 @@ public class MultiLayerPerceptron implements Cloneable
 	public void saveWeights(String fileName, PrintStream out){
 
 		try{
-			RobocodeFileOutputStream stream = new RobocodeFileOutputStream(rootLocation + "/" + fileName); //change this to the other slash if you're using windows
+			int fileCtr = 0;
+			RobocodeFileOutputStream rfs = new RobocodeFileOutputStream(rootLocation + "/" + fileName + fileCtr);
 			byte[] binD = new byte[8];
+			long byteCtr = 0;
 
 			for(int i = 1; i < fLayers.length; i++){
 				for(int j = 0; j < fLayers[i].Length; j++){
 					for(int k = 0; k < fLayers[i].Neurons[j].Weights.length; k++){
 						ByteBuffer.wrap(binD).putDouble(fLayers[i].Neurons[j].Weights[k]);
-						stream.write(binD);
-						ByteBuffer.wrap(binD).putDouble(0);
+						rfs.write(binD);
+						byteCtr++;
+
+						if(byteCtr == 23000){
+							byteCtr = 0;
+							fileCtr++;
+							rfs.close();
+							rfs = new RobocodeFileOutputStream(rootLocation + "/" + fileName + fileCtr);
+						}
 					}
 				}
 			}
-			
-			stream.close();
+
+			rfs.close();
+
 		} catch (Exception e){
 			//out.println("Location: " + rootLocation);
-			out.println("Error: " + e.getMessage());
+			out.println("FUCKING ERROR AGAIN: " + e.getMessage());
 		}
 		
 	}
@@ -482,7 +498,7 @@ public class MultiLayerPerceptron implements Cloneable
 		return fLayers[fLayers.length - 1].Length;
 	}
 
-	public long getNumOfWeights(){
+	private long getNumOfWeights(){
 		long iterator = 0;
 		for(int i = 1; i < fLayers.length; i++){
 			for(int j = 0; j < fLayers[i].Length; j++){
@@ -492,6 +508,10 @@ public class MultiLayerPerceptron implements Cloneable
 			}
 		}
 		return iterator;
+	}
+
+	public long getFastNumOfWeights(){
+		return this.numOfWeights;
 	}
 }
 
