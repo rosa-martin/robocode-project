@@ -525,7 +525,7 @@ public void run() {
         //out.println("USING SINGLE INPUT");
         double maxQ = getMaxQValue(currentQValues);
         lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]); //bellman
-        error = RobocodeRunner.mainNetwork.backPropagate(lastState.toArray(), lastQValues); 
+        error = RobocodeRunner.mainNetwork.backPropagate2(lastState.toArray(), currentAction, lastReward + GAMMA * maxQ);
         out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
         //}
         //else{
