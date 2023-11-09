@@ -279,6 +279,50 @@ public class MultiLayerPerceptron implements Cloneable
 	 * @return Errore delta tra output generato ed output atteso
 	 */
 
+	public double backPropagate2(double[] input, int action, double output){
+		double new_output[] = execute(input);
+		double error;
+		int i;
+		int j;
+		int k;
+		
+		/* doutput = correct output (output) */
+		// error = reward + GAMMA * maxQ(target) - qPred
+		// Calcoliamo l'errore dell'output
+		for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
+		{
+			error = output - new_output[action];
+			fLayers[fLayers.length - 1].Neurons[i].Delta = error * fTransferFunction.evaluateDerivate(new_output[i]);
+		} 
+	
+		
+		for(k = fLayers.length - 2; k >= 0; k--)
+		{
+			// Calcolo l'errore dello strato corrente e ricalcolo i delta
+			for(i = 0; i < fLayers[k].Length; i++)
+			{
+				error = 0.0;
+				for(j = 0; j < fLayers[k + 1].Length; j++)
+					error += fLayers[k + 1].Neurons[j].Delta * fLayers[k + 1].Neurons[j].Weights[i];
+								
+				fLayers[k].Neurons[i].Delta = error * fTransferFunction.evaluateDerivate(fLayers[k].Neurons[i].Value);				
+			}
+			
+			// Aggiorno i pesi dello strato successivo
+			for(i = 0; i < fLayers[k + 1].Length; i++)
+			{
+				for(j = 0; j < fLayers[k].Length; j++)
+					fLayers[k + 1].Neurons[i].Weights[j] += fLearningRate * fLayers[k + 1].Neurons[i].Delta * fLayers[k].Neurons[j].Value;
+				fLayers[k + 1].Neurons[i].Bias += fLearningRate * fLayers[k + 1].Neurons[i].Delta;
+			}
+		}	
+		
+		// Calcoliamo l'errore 
+		error = huberLoss2(new_output[action], output, 1.0);
+		
+		return error;
+	}
+
 	public double backPropagate(double[] input, double[] output)
 	{
 		double new_output[] = execute(input);
@@ -324,6 +368,17 @@ public class MultiLayerPerceptron implements Cloneable
 		error = huberLoss(new_output, output, 1.0);
 		formerY = currY;
 		
+		return error;
+	}
+
+	public static double huberLoss2(double y, double y_pred, double delta) {
+		double error = 0;
+		double diff = y - y_pred;
+		if (Math.abs(diff) <= delta) {
+			error += 0.5 * diff * diff;
+		} else {
+			error += delta * (Math.abs(diff) - 0.5 * delta);
+		}
 		return error;
 	}
 	
