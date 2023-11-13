@@ -430,8 +430,7 @@ public void run() {
     }
 
     public void onRoundEnded(RoundEndedEvent e){
-        //RobocodeRunner.mainNetwork.saveWeights("weights", out);
-        //out.println("Weights saved");
+        RobocodeRunner.mainNetwork.saveWeights("weights", out);
     }
     
     public void onHitByBullet(HitByBulletEvent e) {

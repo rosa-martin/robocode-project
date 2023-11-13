@@ -119,7 +119,7 @@ public class MultiLayerPerceptron implements Cloneable
 			output[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
 		}
 
-		output = softmax(output);
+		output = sigmoid(output);
 		
 		return output;
 	}
@@ -191,6 +191,16 @@ public class MultiLayerPerceptron implements Cloneable
         return eXs;
     }
 
+	public static double[] sigmoid(double[] neuronValues){
+		double[] result = new double[neuronValues.length];
+		for(int i = 0; i < neuronValues.length; i++){
+			result[i] = 1 / (1 + Math.pow(Math.E, neuronValues[i]));
+		}
+		
+		return result;
+	}
+
+
 	public void copyWeights(MultiLayerPerceptron dest) {
 		for(int k = 1; k < fLayers.length; k++)
 		{
@@ -210,26 +220,18 @@ public class MultiLayerPerceptron implements Cloneable
 			int fileCtr = 0;
 			RobocodeFileOutputStream rfs = new RobocodeFileOutputStream(rootLocation + "/" + fileName + fileCtr);
 			byte[] binD = new byte[8];
-			long byteCtr = 0;
 
 			for(int i = 1; i < fLayers.length; i++){
 				for(int j = 0; j < fLayers[i].Length; j++){
 					for(int k = 0; k < fLayers[i].Neurons[j].Weights.length; k++){
 						ByteBuffer.wrap(binD).putDouble(fLayers[i].Neurons[j].Weights[k]);
 						rfs.write(binD);
-						byteCtr++;
-
-						if(byteCtr == 23000){
-							byteCtr = 0;
-							fileCtr++;
-							rfs.close();
-							rfs = new RobocodeFileOutputStream(rootLocation + "/" + fileName + fileCtr);
-						}
 					}
 				}
 			}
 
 			rfs.close();
+			out.println("Weights saved");
 
 		} catch (Exception e){
 			//out.println("Location: " + rootLocation);

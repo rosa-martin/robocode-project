@@ -7,21 +7,23 @@ import java.util.Random;
 import javax.swing.filechooser.FileSystemView;
 
 import java.awt.Color;
-import tanks.RobocodeRunner;
 import robocode.*;
 import robocode.util.Utils;
+import robocode.control.events.RoundStartedEvent;
 import java.awt.geom.Point2D;
+//import org.neuroph.nnet.MultiLayerPerceptron;
 
 public class QLearningRobotV2 extends AdvancedRobot {
 
-    private static final int MAX_EPISODES = RobocodeRunner.NUM_OF_ROUNDS;       // Number of rounds
+    private static final int MAX_EPISODES = 1000;       // Number of rounds
     private static final double GAMMA = 0.9;            // How important is the next estimated reward?
-    private static final double ALPHA = RobocodeRunner.ALPHA;            // How fast shall we converge? -- The learning rate
+    private static final double ALPHA = 0.1;            // How fast shall we converge? -- The learning rate
+    private static final double lr = 0.0001;
     private static double EPS_START = 1.0;              // Maximal (Starting) Exploration rate
     private static double EPS_END = 0.05;               // Minimal (Ending) Exploration rate
     private static int EPS_DECAY = 1000;                // The exploration decay rate => We are focusing on exploitation more that exploration.
 
-    private static final int NUM_OF_INPUTS = RobocodeRunner.NUM_OF_INPUTS;
+    private static final int NUM_OF_INPUTS = 19;
     private static final int NUM_OF_OUTPUTS = Action.values().length;
     private final static int HEIGHT = 600;
     private final static int WIDTH = 800;
@@ -29,16 +31,24 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private final static int TARGET_UPDATE_FREQ = 100;
     private final static int BATCH_SIZE = 30;
     private final static int MEMORY_SIZE = 2500;
+    public static ArrayList<Sample> memory = new ArrayList<Sample>();
+    public static double STEPS_DONE = 0;
+
+    public static int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
+    public static MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, lr, new ReLU());
+    public static MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, lr, new ReLU());
+    public static MultiLayerPerceptron weightsHolder = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, lr, new ReLU());
+
+    public static int CURRENT_EPISODE = 0;
 
     private double[] lastQValues;
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int currentAction;
     private int lastAction;
     private int ctr = 0;
+    public static boolean isInitialTurn = true;
 
     SigmoidalTransfer sigmoid = new SigmoidalTransfer();
-
-    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
 
     private double enemyBearing;
     private double enemyHeading;
@@ -101,8 +111,8 @@ public class QLearningRobotV2 extends AdvancedRobot {
     }
 
     private int chooseAction(double[] qValues) {
-        double eps_threshold = EPS_END + (EPS_START - EPS_END) * Math.exp(-1. * RobocodeRunner.STEPS_DONE / EPS_DECAY);
-        RobocodeRunner.STEPS_DONE ++;
+        double eps_threshold = EPS_END + (EPS_START - EPS_END) * Math.exp(-1. * STEPS_DONE / EPS_DECAY);
+        STEPS_DONE ++;
 
         if (Math.random() < eps_threshold) { 
             out.println("TAKING RANDOM ACTION");
@@ -254,11 +264,11 @@ public class QLearningRobotV2 extends AdvancedRobot {
         Random rand = new Random();
         ArrayList<Sample> samples = new ArrayList<Sample>();
         
-        if (num <= RobocodeRunner.memory.size())
+        if (num <= memory.size())
         {
             for (int i = 0; i < num; i++) {
-                int index = rand.nextInt(RobocodeRunner.memory.size());
-                samples.add(RobocodeRunner.memory.get(index));
+                int index = rand.nextInt(memory.size());
+                samples.add(memory.get(index));
             }
         }
 
@@ -274,10 +284,12 @@ public void run() {
     setBulletColor(Color.black);
     setAdjustGunForRobotTurn(true); // Keep the gun still when we turn
 
-    if(RobocodeRunner.isInitialTurn){
-        RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.weightsHolder);
-        RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.targetNetwork);
-        RobocodeRunner.isInitialTurn = false;
+
+
+    if(isInitialTurn){
+        mainNetwork.copyWeights(weightsHolder);
+        mainNetwork.copyWeights(targetNetwork);
+        isInitialTurn = false;
     }
     
 }
@@ -430,9 +442,13 @@ public void run() {
     }
 
     public void onRoundEnded(RoundEndedEvent e){
-        //RobocodeRunner.mainNetwork.saveWeights("weights", out);
-        //out.println("Weights saved");
+        mainNetwork.saveWeights("weights", STEPS_DONE, out);
     }
+
+    //public void onRoundStarted(RoundStartedEvent e){
+    //    STEPS_DONE = mainNetwork.loadWeights("weights", out);
+    //    out.println("WEIGHTS LOADED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    //}
     
     public void onHitByBullet(HitByBulletEvent e) {
         this.bulletBearing = e.getBearing();
@@ -472,6 +488,18 @@ public void run() {
         if (lastState == null) {
             out.println("INITIAL STATE");
             lastState = getCurrentState();
+            STEPS_DONE = mainNetwork.loadWeights("weights", out);
+        }
+
+        if (CURRENT_EPISODE % TARGET_UPDATE_FREQ == 0) {
+            out.println("COPYING WEIGHTS TO TMP NETWORK");
+            mainNetwork.copyWeights(weightsHolder);
+
+            if(ctr % 2 == 0){
+                out.println("COPYTING WEIGHTS TO TARGET NETWORK");
+                weightsHolder.copyWeights(targetNetwork);
+            }
+            ctr++;
         }
 
 
@@ -535,7 +563,7 @@ public void run() {
         
         out.println("LAST STATE: "+stringifyField(lastState.toArray()));
         if(lastQValues == null){
-            lastQValues = RobocodeRunner.mainNetwork.execute(lastState.toArray());
+            lastQValues = mainNetwork.execute(lastState.toArray());
         }
         
         out.println("LAST Q VALUES: "+stringifyField(lastQValues));
@@ -549,15 +577,15 @@ public void run() {
 
         currentState = getCurrentState();
         //out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
-        currentQValues = RobocodeRunner.targetNetwork.execute(currentState.toArray());
+        currentQValues = targetNetwork.execute(currentState.toArray());
         out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
         double error = 0.0;
-        out.println("SIZE OF MEMORY: "+RobocodeRunner.memory.size());
+        out.println("SIZE OF MEMORY: "+memory.size());
         //if(RobocodeRunner.memory.size() < BATCH_SIZE) {
         //out.println("USING SINGLE INPUT");
         double maxQ = getMaxQValue(currentQValues);
-        lastQValues[currentAction] = lastQValues[currentAction] + 0.1 * (lastReward + GAMMA * maxQ - lastQValues[currentAction]); //bellman
-        error = RobocodeRunner.targetNetwork.backPropagate(lastState.toArray(), currentQValues);
+        lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]); //bellman
+        error = targetNetwork.backPropagate(lastState.toArray(), currentQValues);
         out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
         //}
         //else{
@@ -591,25 +619,13 @@ public void run() {
         //}
         
         out.println("HUBER LOSS: "+error);
-        if (RobocodeRunner.memory.size() >= MEMORY_SIZE) {
-            RobocodeRunner.memory.remove(0);
+        if (memory.size() >= MEMORY_SIZE) {
+            memory.remove(0);
         }
-        RobocodeRunner.memory.add(new Sample(lastState, currentAction, lastReward, currentState));
-
-        if (RobocodeRunner.CURRENT_EPISODE % TARGET_UPDATE_FREQ == 0) {
-            out.println("COPYING WEIGHTS TO TMP NETWORK");
-            RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.weightsHolder);
-
-            if(ctr % 2 == 0){
-                out.println("COPYTING WEIGHTS TO TARGET NETWORK");
-                RobocodeRunner.weightsHolder.copyWeights(RobocodeRunner.targetNetwork);
-            }
-            ctr++;
-        }
-
+        memory.add(new Sample(lastState, currentAction, lastReward, currentState));
         
 
-        RobocodeRunner.CURRENT_EPISODE ++;
+        CURRENT_EPISODE ++;
         lastEnergy = energy;
 		lastState = currentState;
 		lastReward = currentReward;
