@@ -19,10 +19,11 @@ import sample.Sample;
 import sample.SigmoidalTransfer;
 import sample.MultiLayerPerceptron;
 import sample.QLearningRobotV2;
+import sample.LeakyRelu;
 
 public class RobocodeRunner {
 
-	public static final double ALPHA = 0.1;
+	public static final double ALPHA = 0.0001;
 	public static final int NUM_OF_INPUTS = 19;
     public static final int NUM_OF_OUTPUTS = QLearningRobotV2.Action.values().length; 
 	public static int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
@@ -41,7 +42,7 @@ public class RobocodeRunner {
 
 	public static void main(String[] args) throws IOException {
 		String nazevTridyMehoRobota = "QLearningRobotV2";
-		String seznamProtivniku = "GeneticTankBlueprint";
+		String seznamProtivniku = "X_GPbot_2_169";
 		//String seznamProtivniku = "RL_DeadlyTurttle, GeneticTankBlueprint, X_GPbot_2_169";
 		//String seznamProtivniku = "GeneticTankBlueprint";
 

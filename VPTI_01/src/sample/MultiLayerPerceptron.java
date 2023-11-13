@@ -119,7 +119,7 @@ public class MultiLayerPerceptron implements Cloneable
 			output[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
 		}
 
-		//output = softmax(output);
+		output = softmax(output);
 		
 		return output;
 	}

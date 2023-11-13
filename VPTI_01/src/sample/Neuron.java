@@ -26,9 +26,9 @@ public class Neuron
 	public Neuron(int prevLayerSize)
 	{
 		Weights = new double[prevLayerSize];
-		Bias = Math.random();
-		Delta = Math.random();
-		Value = Math.random();
+		Bias = Math.random() / 1000000;
+		Delta = Math.random() / 1000000;
+		Value = Math.random() / 1000000;
 		
 		for(int i = 0; i < Weights.length; i++)
 			Weights[i] = Math.random();

@@ -30,7 +30,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private final static int BATCH_SIZE = 30;
     private final static int MEMORY_SIZE = 2500;
 
-    private double[] lastQValues = new double[NUM_OF_OUTPUTS];
+    private double[] lastQValues;
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int currentAction;
     private int lastAction;
@@ -353,6 +353,35 @@ public void run() {
 		return true;
 	}
 
+    private State getZeroState(){
+        double ourX = 0;
+        double ourY = 0;
+        double ourHeading = 0;
+        double distRemaining = 0;
+        double ourVelocity = 0;
+        double ourEnergy = 0;
+        //double ourGunHeat = getGunHeat();
+        //double ourGunHeading = getGunHeading();
+        double ourRadarHeading = 0;
+        double enemyCount = 0;
+        double scannedRobots = 0;
+        // Get the enemy's bearing and distance from our robot
+        double enemyBearing = 0;
+        double enemyDistance = 0;
+        double enemyX = 0;
+        double enemyY = 0;
+        double enemyHeading = 0;
+        double enemyVelocity = 0;
+        double enemyEnergy = 0;
+        double bulletHeading = 0;
+        double bulletBearing = 0;
+        double bulletPower = 0;
+        double bulletVelocity = 0;
+
+        return new State(ourX, ourY, ourHeading, distRemaining, ourVelocity, ourEnergy, ourRadarHeading, enemyCount, scannedRobots, enemyBearing,
+         enemyDistance, enemyX, enemyY, enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
+    }
+
     private State getCurrentState() {
         // Get our robot's position and heading
          // Get our robot's position and heading
@@ -504,8 +533,11 @@ public void run() {
             }
         }
         
-        //out.println("LAST STATE: "+stringifyField(lastState.toArray()));
-        lastQValues = RobocodeRunner.mainNetwork.execute(lastState.toArray());
+        out.println("LAST STATE: "+stringifyField(lastState.toArray()));
+        if(lastQValues == null){
+            lastQValues = RobocodeRunner.mainNetwork.execute(lastState.toArray());
+        }
+        
         out.println("LAST Q VALUES: "+stringifyField(lastQValues));
         
         currentAction = chooseAction(lastQValues);
@@ -524,8 +556,8 @@ public void run() {
         //if(RobocodeRunner.memory.size() < BATCH_SIZE) {
         //out.println("USING SINGLE INPUT");
         double maxQ = getMaxQValue(currentQValues);
-        lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]); //bellman
-        error = RobocodeRunner.mainNetwork.backPropagate2(lastState.toArray(), currentAction, lastReward + GAMMA * maxQ);
+        lastQValues[currentAction] = lastQValues[currentAction] + 0.1 * (lastReward + GAMMA * maxQ - lastQValues[currentAction]); //bellman
+        error = RobocodeRunner.targetNetwork.backPropagate(lastState.toArray(), currentQValues);
         out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
         //}
         //else{
@@ -582,6 +614,7 @@ public void run() {
 		lastState = currentState;
 		lastReward = currentReward;
         lastAction = currentAction;
-		currentReward = 0.0;
+        lastQValues = currentQValues;
+		currentReward = 1;
 	}
 }
