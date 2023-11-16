@@ -74,10 +74,6 @@ public class NeatRobot extends AdvancedRobot {
 		}
 	}
 
-	public static int getReward() {
-		return currentReward;
-	}
-
 	public static float[] getInputs()
 	{
 		float absoluteBearing = robotHeading + robotGunHeading;
@@ -99,40 +95,68 @@ public class NeatRobot extends AdvancedRobot {
 		outputs = values;
 	}
 
+	private static int getMaxIndex(float[] array){
+		float max = array[0];
+		int index = 0;
+
+		for (int i = 1; i < array.length; i++) {
+    		if (array[i] > max) {
+      			max = array[i];
+				index = i;
+    		}
+		}
+		return index;
+	}
+
 	public void doAction(float[] values) {
-
-		setAhead(values[0]);
-		out.println("Go ahead by " + values[0] + " points.");
-
-		setTurnRight(values[1]);
-		out.println("Turn right by " + values[1] + " °.");
-
-		setTurnLeft(values[2]);
-		out.println("Turn left by " + values[2] + " °.");
-
-		setBack(values[3]);
-		out.println("Go back by " + values[3] + " points.");
-
-		setTurnGunRight(values[4]);
-		out.println("Turn gun right by " + values[4] + "°.");
-
-		setTurnGunLeft(values[5]);
-		out.println("Turn gun left by " + values[5] + "°.");
-
-		setTurnRadarRight(values[6]);
-		out.println("Turn radar right by " + values[6] + "°.");
-
-		setTurnRadarLeft(values[7]);
-		out.println("Turn radar left by " + values[7] + "°.");
-
-		setFire(values[8]);
-		out.println("Fire with power " + values[8] + ".");
-
+		switch (getMaxIndex(values)) {
+			case 0:
+			setAhead(50);
+			out.println("Ahead.");
+			break;
+		case 1:
+			setTurnRight(30);
+			out.println("Turn right.");
+			break;
+		case 2:
+			setTurnLeft(30);
+			out.println("Turn left.");
+			break;
+		case 3:
+			setBack(50);
+			out.println("Go back.");
+			break;
+		case 4:
+			setTurnGunRight(45);
+			out.println("Turn Gun Right By 45°.");
+			break;
+		case 5:
+			setTurnGunLeft(45);
+			out.println("Turn Gun Left By 45°.");
+			break;
+		case 6:
+			setTurnRadarRight(90);
+			out.println("Turn Radar Right By 90°.");
+			break;
+		case 7:
+			setTurnRadarLeft(90);
+			out.println("Turn Radar Left By 90°.");
+			break;
+		case 8:
+			
+			if(getScannedRobotEvents().size()==0) {
+				setTurnRadarRight(360);
+			}
+			
+			out.println("Spin Radar and don't move.");
+			break;
+		default:
+			break;
+		};
 		out.println("Top fitness: " + topGenome.getPoints());
 		out.println("Generation: " + generation);
-
 		execute();
-	}
+		}
 
 	public void onStatus(StatusEvent e) {
 		double energy = e.getStatus().getEnergy();

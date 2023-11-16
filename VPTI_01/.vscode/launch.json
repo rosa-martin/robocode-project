@@ -9,6 +9,13 @@
             "name": "RobocodeRunner",
             "request": "launch",
             "mainClass": "tanks.RobocodeRunner",
+            "projectName": "VPTI_01_980c775e"
+        },
+        {
+            "type": "java",
+            "name": "RobocodeRunner",
+            "request": "launch",
+            "mainClass": "tanks.RobocodeRunner",
             "projectName": "VPTI_01_7d15e664"
         },
         {
