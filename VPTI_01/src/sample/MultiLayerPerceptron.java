@@ -116,10 +116,8 @@ public class MultiLayerPerceptron implements Cloneable
 		// Get output
 		for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
 		{
-			output[i] = fLayers[fLayers.length - 1].Neurons[i].Value;
+			output[i] = Math.tanh(fLayers[fLayers.length - 1].Neurons[i].Value);
 		}
-
-		output = sigmoid(output);
 		
 		return output;
 	}
@@ -159,7 +157,7 @@ public class MultiLayerPerceptron implements Cloneable
         // Get output
         for(i = 0; i < fLayers[fLayers.length - 1].Length; i++)
         {
-            outputs[b][i] = fLayers[fLayers.length - 1].Neurons[i].Value;
+            outputs[b][i] = Math.tanh(fLayers[fLayers.length - 1].Neurons[i].Value);
         }
     }
 

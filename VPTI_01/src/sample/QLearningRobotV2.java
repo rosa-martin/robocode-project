@@ -2,73 +2,61 @@ package sample;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Random;
+import java.util.Set;
+import java.util.Map.Entry;
 
 import javax.swing.filechooser.FileSystemView;
 
 import java.awt.Color;
+import tanks.RobocodeRunner;
 import robocode.*;
 import robocode.util.Utils;
-import robocode.control.events.RoundStartedEvent;
 import java.awt.geom.Point2D;
-//import org.neuroph.nnet.MultiLayerPerceptron;
 
 public class QLearningRobotV2 extends AdvancedRobot {
 
-    private static final int MAX_EPISODES = 1000;       // Number of rounds
-    private static final double GAMMA = 0.9;            // How important is the next estimated reward?
-    private static final double ALPHA = 0.1;            // How fast shall we converge? -- The learning rate
-    private static final double lr = 0.0001;
+    private static final int MAX_EPISODES = RobocodeRunner.NUM_OF_ROUNDS;       // Number of rounds
+    private static final double GAMMA = 0.7;            // How important is the next estimated reward?
+    private static final double ALPHA = RobocodeRunner.ALPHA;            // How fast shall we converge? -- The learning rate
     private static double EPS_START = 1.0;              // Maximal (Starting) Exploration rate
     private static double EPS_END = 0.05;               // Minimal (Ending) Exploration rate
-    private static int EPS_DECAY = 1000;                // The exploration decay rate => We are focusing on exploitation more that exploration.
+    private static int EPS_DECAY = 10000;                // The exploration decay rate => We are focusing on exploitation more that exploration.
 
-    private static final int NUM_OF_INPUTS = 19;
+    private static final int NUM_OF_INPUTS = RobocodeRunner.NUM_OF_INPUTS;
     private static final int NUM_OF_OUTPUTS = Action.values().length;
     private final static int HEIGHT = 600;
     private final static int WIDTH = 800;
     private final static double THRESHOLD = 50.0;
-    private final static int TARGET_UPDATE_FREQ = 100;
-    private final static int BATCH_SIZE = 30;
+    private final static int TARGET_UPDATE_FREQ = 150;
+    private final static int BATCH_SIZE = RobocodeRunner.BATCH_SIZE;
     private final static int MEMORY_SIZE = 2500;
-    public static ArrayList<Sample> memory = new ArrayList<Sample>();
-    public static double STEPS_DONE = 0;
 
-    public static int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
-    public static MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, lr, new ReLU());
-    public static MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, lr, new ReLU());
-    public static MultiLayerPerceptron weightsHolder = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, lr, new ReLU());
-
-    public static int CURRENT_EPISODE = 0;
-
-    private double[] lastQValues;
+    private double[] lastQValues = new double[NUM_OF_OUTPUTS];
     private double[] currentQValues = new double[NUM_OF_OUTPUTS];
     private int currentAction;
     private int lastAction;
-    private int ctr = 0;
-    public static boolean isInitialTurn = true;
 
     SigmoidalTransfer sigmoid = new SigmoidalTransfer();
 
-    private double enemyBearing;
-    private double enemyHeading;
-    private double enemyDistance;
-    private double enemyX;
-    private double enemyY;
-    private double enemyVelocity;
-    private double enemyEnergy;
+    private int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
+
     private double bulletBearing; 
     private double bulletHeading;
     private double bulletVelocity;
     private double bulletPower; 
-    private double scannedRobots;
     
     private double speedIndex = 1;
+    private int max_enemies = 3;
+    private int current_enemies = max_enemies;
+    private HashMap<String, ScannedRobotEvent> enemies = new HashMap<String,ScannedRobotEvent>();
 
     private static double hitWallPen = 0.0;
 	private static double hitByBullet = 0.0;
 	private static double hitEnemyPen = 0.0;
     private static double bulletMissedPen = 0.0;
+    private static double bulletHitBulletPen = 0.0;
     private static double scannedRobotPen = 0.0;
     private static double bulletHitPen = 0.0;
     private static double robotDeathPen = 0.0;
@@ -83,23 +71,26 @@ public class QLearningRobotV2 extends AdvancedRobot {
     private double lastReward;
     private double lastEnergy = 100.0;
 
-
     public static enum Action {
         MOVE_FORWARD, // Move forward
         MOVE_BACKWARD, // Move backward
         TURN_LEFT, // Turn left
         TURN_RIGHT, // Turn right
+        /*
         TURN_RADAR_LEFT, // Turn radar left
         TURN_RADAR_RIGHT, // Turn radar right
         TURN_GUN_LEFT, // Turn gun left
         TURN_GUN_RIGHT, // Turn gun right
+        */
         SLOW_DOWN, // Slow down
         FASTER, // Increase the velocity
-        SPIN_RADAR, // Do a radar spin
+        SPIN_RADAR; // Do a radar spin
+        /*
         DO_NOTHING, // self-explanatory
         LOCK_RADAR, //lock radar on certain position
-        LOCK_GUN, // Do nothing
+        LOCK_GUN; // Do nothing
         FIRE; // Fire
+        */
 
         public int getIndex() {
             return this.ordinal();
@@ -110,9 +101,9 @@ public class QLearningRobotV2 extends AdvancedRobot {
         }
     }
 
-    private int chooseAction(double[] qValues) {
-        double eps_threshold = EPS_END + (EPS_START - EPS_END) * Math.exp(-1. * STEPS_DONE / EPS_DECAY);
-        STEPS_DONE ++;
+    private int chooseAction() {
+        double eps_threshold = EPS_END + (EPS_START - EPS_END) * Math.exp(-1. * RobocodeRunner.STEPS_DONE / EPS_DECAY);
+        RobocodeRunner.STEPS_DONE ++;
 
         if (Math.random() < eps_threshold) { 
             out.println("TAKING RANDOM ACTION");
@@ -123,7 +114,7 @@ public class QLearningRobotV2 extends AdvancedRobot {
             //    currentAction = rand.nextInt(NUM_OF_OUTPUTS);
             //} else {
             out.println("TAKING ACTION FROM THE NN");
-            currentAction = getActionWithMaxQValue(qValues);
+            currentAction = getActionWithMaxQValue(lastQValues);
             //}
         }
         return currentAction;
@@ -151,94 +142,106 @@ public class QLearningRobotV2 extends AdvancedRobot {
         return maxVal;
     }
     
-    private void executeAction(int actionIndex) {
-        Action action = Action.fromIndex(actionIndex);
+    private void executeAction() {
+        Action action = Action.fromIndex(chooseAction());
         switch (action) {
             case MOVE_FORWARD:
                 out.println("MOVE_FORWARD");
-                currentAction = 0;
+                currentAction = Action.MOVE_FORWARD.getIndex();
                 setAhead(45); // Move forward by 45 pixels
                 break;
             case MOVE_BACKWARD:
                 out.println("MOVE_BACKWARD");
-                currentAction = 1;
+                currentAction = Action.MOVE_BACKWARD.getIndex();
                 setBack(45); // Move backward by 45 pixels
                 break;
             case TURN_LEFT:
                 out.println("TURN_LEFT");
-                currentAction = 2;
+                currentAction = Action.TURN_LEFT.getIndex();
                 setTurnLeft(45); // Turn left by 45 degrees
                 break;
             case TURN_RIGHT:
                 out.println("TURN_RIGHT");
-                currentAction = 3;
+                currentAction = Action.TURN_RIGHT.getIndex();
                 setTurnRight(45); // Turn right by 45 degrees
                 break;
+            /*
             case TURN_RADAR_LEFT:
                 out.println("TURN_RADAR_LEFT");
-                currentAction = 4;
                 setTurnRadarLeft(45); // Turn radar left by 45 degrees
                 break;
             case TURN_RADAR_RIGHT:
                 out.println("TURN_RADAR_RIGHT");
-                currentAction = 5;
                 setTurnRadarRight(45); // Turn radar right by 45 degrees
                 break;
             case TURN_GUN_LEFT:
                 out.println("TURN_GUN_LEFT");
-                currentAction = 6;
                 setTurnGunLeft(45); // Turn gun left by 45 degrees
                 break;
             case TURN_GUN_RIGHT:
                 out.println("TURN_GUN_RIGHT");
-                currentAction = 7;
                 setTurnGunRight(45); // Turn gun right by 45 degrees
                 break;
+            */
             case SLOW_DOWN:
                 out.println("SLOW_DOWN");
-                currentAction = 8;
+                currentAction = Action.SLOW_DOWN.getIndex();
                 setMaxVelocity(Rules.MAX_VELOCITY/(2*speedIndex)); // Slow down
                 speedIndex++;
+                if (speedIndex == 4){
+                    speedIndex = 1;
+                }
                 break;
             case FASTER:
                 out.println("FASTER");
-                currentAction = 9;
-                setMaxVelocity(Rules.MAX_VELOCITY); // Increase the velocity
+                currentAction = Action.FASTER.getIndex();
+                if (getVelocity() < Rules.MAX_VELOCITY/2) {
+                    setMaxVelocity(Rules.MAX_VELOCITY/2); // Increase the velocity
+                }
+                else {
+                    setMaxVelocity(Rules.MAX_VELOCITY); // Increase the velocity
+                }
                 break;
             case SPIN_RADAR:
                 out.println("SPIN_RADAR");
-                currentAction = 10;
-                setTurnRadarRight(Double.POSITIVE_INFINITY); // Do a radar spin
+                currentAction = Action.SPIN_RADAR.getIndex();
+                if (rand.nextBoolean()) {
+                    setTurnRadarRightRadians(Double.POSITIVE_INFINITY); // Do a radar spin
+                } else {
+                    setTurnRadarLeftRadians(Double.POSITIVE_INFINITY); // Do a radar spin
+                }
                 break;
+            /*
             case DO_NOTHING:
                 out.println("DO_NOTHING");
-                currentAction = 11;
+                currentAction = Action.DO_NOTHING.getIndex();
                 doNothing(); // Do nothing
                 break;
             case FIRE:
                 out.println("FIRE");
-                currentAction = 12;
-                if (enemyDistance <= 80)
+                currentAction = Action.FIRE.getIndex();
+                if (getEnergy() > 50)
                 {
-                    fire(Rules.MAX_BULLET_POWER); // Fire a huge bullet
+                    setFire(Rules.MAX_BULLET_POWER); // Fire a huge bullet
                 }
-                else
+                else 
                 {
-                    fire(Rules.MAX_BULLET_POWER/2);
+                    setFire(Rules.MAX_BULLET_POWER/2);
                 }
                 break;
             case LOCK_RADAR:
                 out.println("LOCK_RADAR");
-                currentAction = 13;
+                currentAction = Action.LOCK_RADAR.getIndex();
                 setTurnRadarLeftRadians(getRadarTurnRemainingRadians());
                 break;
             case LOCK_GUN:
                 out.println("LOCK_GUN");
-                currentAction = 14;
+                currentAction = Action.LOCK_GUN.getIndex();
                 setTurnGunLeftRadians(getGunTurnRemainingRadians());
                 break;
+            */
             }
-            execute(); // Executes all pending commands
+        execute(); // Executes all pending commands
     }    
     
     public static String stringifyField(double[] field){
@@ -264,11 +267,11 @@ public class QLearningRobotV2 extends AdvancedRobot {
         Random rand = new Random();
         ArrayList<Sample> samples = new ArrayList<Sample>();
         
-        if (num <= memory.size())
+        if (num <= RobocodeRunner.memory.size())
         {
             for (int i = 0; i < num; i++) {
-                int index = rand.nextInt(memory.size());
-                samples.add(memory.get(index));
+                int index = rand.nextInt(RobocodeRunner.memory.size());
+                samples.add(RobocodeRunner.memory.get(index));
             }
         }
 
@@ -283,47 +286,69 @@ public void run() {
     setScanColor(Color.black);
     setBulletColor(Color.black);
     setAdjustGunForRobotTurn(true); // Keep the gun still when we turn
-
-
-
-    if(isInitialTurn){
-        mainNetwork.copyWeights(weightsHolder);
-        mainNetwork.copyWeights(targetNetwork);
-        isInitialTurn = false;
-    }
     
+    while (current_enemies != 0){
+        executeAction();
+    }
 }
 
     public void onScannedRobot(ScannedRobotEvent e) {
-        // Calculate the bearing to the scanned robot
-        this.enemyBearing = e.getBearing();
-        this.enemyEnergy = e.getEnergy();
-        // Get the distance to the scanned robot
-        this.enemyDistance = e.getDistance();
-        this.enemyHeading = e.getHeading();
-        scannedRobotPen = 1;
+        if (enemies.containsKey(e.getName()))
+        {
+            scannedRobotPen = 5;
+        }
+        else{
+            scannedRobotPen = 10;
+        }
+        
+        enemies.put(e.getName(), e);
+
+        Set<Entry<String, ScannedRobotEvent>> setOfEntries = enemies.entrySet();
+        // get the iterator from entry set
+        Iterator<Entry<String, ScannedRobotEvent>> iterator = setOfEntries.iterator();
+
+        // iterate over map
+        while (iterator.hasNext()) {
+            Entry<String, ScannedRobotEvent> entry = iterator.next();
+            ScannedRobotEvent sre = entry.getValue();
+
+            if (sre.getTime() < (getTime() - 10)) {
+                iterator.remove();
+            }
+        }
 
         double radarTurn =
         // Absolute bearing to target
-        getHeadingRadians() + e.getBearingRadians()
+        getHeadingRadians() + enemies.get(e.getName()).getBearingRadians()
         // Subtract current radar heading to get turn required
         - getRadarHeadingRadians();
 
-        setTurnRadarRightRadians(Utils.normalRelativeAngle(radarTurn));
-	
+        setTurnRadarRightRadians(2.0 * Utils.normalRelativeAngle(radarTurn));
+
 //		************************************************************
 //		*******Source: http://robowiki.net/wiki/Linear_Targeting
         // ... Radar code ..
-        final double FIREPOWER = 2;
+        double FIREPOWER;
+
+        if (enemies.get(e.getName()).getDistance() > 350.0){
+            FIREPOWER = 1.75;
+        }
+        else if (enemies.get(e.getName()).getDistance() > 200.0){
+            FIREPOWER = 2.25;
+        }
+        else {
+            FIREPOWER = 3.0;
+        }
+
         final double ROBOT_WIDTH = 16,ROBOT_HEIGHT = 16;
         // Variables prefixed with e- refer to enemy, b- refer to bullet and r- refer to robot
-        final double eAbsBearing = getHeadingRadians() + e.getBearingRadians();
+        final double eAbsBearing = getHeadingRadians() + enemies.get(e.getName()).getBearingRadians();
         final double rX = getX(), rY = getY(),
             bV = Rules.getBulletSpeed(FIREPOWER);
-        final double eX = rX + e.getDistance()*Math.sin(eAbsBearing),
-            eY = rY + e.getDistance()*Math.cos(eAbsBearing),
-            eV = e.getVelocity(),
-            eHd = e.getHeadingRadians();
+        final double eX = rX + enemies.get(e.getName()).getDistance()*Math.sin(eAbsBearing),
+            eY = rY + enemies.get(e.getName()).getDistance()*Math.cos(eAbsBearing),
+            eV = enemies.get(e.getName()).getVelocity(),
+            eHd = enemies.get(e.getName()).getHeadingRadians();
         // These constants make calculating the quadratic coefficients below easier
         final double A = (eX - rX)/bV;
         final double B = eV/bV*Math.sin(eHd);
@@ -351,47 +376,11 @@ public void run() {
                 - getGunHeadingRadians()));
             setFire(FIREPOWER);
         }
+        out.println("FIRING BULLET WITH POWER: "+FIREPOWER);
     }
 
     private double limit(double value, double min, double max) {
         return Math.min(max, Math.max(min, value));
-    }
-    
-    public static boolean zerosCheck(double[] arr) {
-		for(Double d: arr){
-			if(!d.equals(0.0))
-				return false;
-		}
-		return true;
-	}
-
-    private State getZeroState(){
-        double ourX = 0;
-        double ourY = 0;
-        double ourHeading = 0;
-        double distRemaining = 0;
-        double ourVelocity = 0;
-        double ourEnergy = 0;
-        //double ourGunHeat = getGunHeat();
-        //double ourGunHeading = getGunHeading();
-        double ourRadarHeading = 0;
-        double enemyCount = 0;
-        double scannedRobots = 0;
-        // Get the enemy's bearing and distance from our robot
-        double enemyBearing = 0;
-        double enemyDistance = 0;
-        double enemyX = 0;
-        double enemyY = 0;
-        double enemyHeading = 0;
-        double enemyVelocity = 0;
-        double enemyEnergy = 0;
-        double bulletHeading = 0;
-        double bulletBearing = 0;
-        double bulletPower = 0;
-        double bulletVelocity = 0;
-
-        return new State(ourX, ourY, ourHeading, distRemaining, ourVelocity, ourEnergy, ourRadarHeading, enemyCount, scannedRobots, enemyBearing,
-         enemyDistance, enemyX, enemyY, enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
     }
 
     private State getCurrentState() {
@@ -400,31 +389,30 @@ public void run() {
          double ourX = getX();
          double ourY = getY();
          double ourHeading = getHeading();
+         double ourGunHeading = getGunHeading();
+         double ourRadarHeading = getRadarHeading();
          double distRemaining = getDistanceRemaining();
          double ourVelocity = getVelocity();
          double ourEnergy = getEnergy();
-         //double ourGunHeat = getGunHeat();
-         //double ourGunHeading = getGunHeading();
-         double ourRadarHeading = getRadarHeading();
          double enemyCount = getOthers();
-         double scannedRobots = (double) getScannedRobotEvents().size();
-     
+        
+         ArrayList<EnemyInfo> enemyList = new ArrayList<EnemyInfo>();
          // Get the enemy's bearing and distance from our robot
-         double enemyBearing = this.enemyBearing;
-         double enemyDistance = this.enemyDistance;
-         double enemyX = this.enemyX;
-         double enemyY = this.enemyY;
-         double enemyHeading = this.enemyHeading;
-         double enemyVelocity = this.enemyVelocity;
-         double enemyEnergy = this.enemyEnergy;
+         for (ScannedRobotEvent enemyInfo : enemies.values())
+         {
+            enemyList.add(new EnemyInfo(enemyInfo.getBearing(), enemyInfo.getDistance(), enemyInfo.getHeading(), enemyInfo.getVelocity(), enemyInfo.getEnergy()));
+         }
+         while (enemyList.size() < max_enemies)
+         {
+            enemyList.add(new EnemyInfo(0.0, 0.0, 0.0, 0.0, 0.0));
+         }
          double bulletHeading = this.bulletHeading;
          double bulletBearing = this.bulletBearing;
          double bulletPower = this.bulletPower;
          double bulletVelocity = this.bulletVelocity;
      
          // Return a new State object with these values
-         return new State(ourX, ourY, ourHeading, distRemaining, ourVelocity, ourEnergy, ourRadarHeading, enemyCount, scannedRobots, enemyBearing,
-         enemyDistance, enemyX, enemyY, enemyHeading, enemyVelocity, enemyEnergy, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
+         return new State(enemyList, ourX, ourY, ourHeading, ourGunHeading, ourRadarHeading, distRemaining, ourVelocity, ourEnergy, enemyCount, bulletHeading, bulletBearing, bulletPower, bulletVelocity);
     }
     
     public void onHitWall(HitWallEvent e) {
@@ -433,22 +421,35 @@ public void run() {
     }
     
     public void onHitRobot(HitRobotEvent e) {
-        if (e.getEnergy() < 10){
-            hitEnemyPen = 15;
+        if (getEnergy() > 50.0){
+            if (e.getEnergy() == 0){
+                hitEnemyPen = 40;
+            }
+            else if (e.getEnergy() < 15) {
+                hitEnemyPen = 15;
+            }
+            else if (e.getEnergy() < 50) {
+                hitEnemyPen = -10;
+            }
+            else {
+                hitEnemyPen = -25;
+            }
         }
         else {
-            hitEnemyPen = -15;
+            if (e.getEnergy() == 0 && getEnergy() > 25.0){
+                hitEnemyPen = 20;
+            }
+            else {
+                hitEnemyPen = -35;
+            }
         }
     }
 
     public void onRoundEnded(RoundEndedEvent e){
-        mainNetwork.saveWeights("weights", STEPS_DONE, out);
+        //RobocodeRunner.mainNetwork.saveWeights("weights", out);
+        //out.println("Weights saved");
+        current_enemies = max_enemies;
     }
-
-    //public void onRoundStarted(RoundStartedEvent e){
-    //    STEPS_DONE = mainNetwork.loadWeights("weights", out);
-    //    out.println("WEIGHTS LOADED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    //}
     
     public void onHitByBullet(HitByBulletEvent e) {
         this.bulletBearing = e.getBearing();
@@ -468,6 +469,10 @@ public void run() {
     	bulletMissedPen = -5;
     }
 
+    public void onBulletHitBullet(BulletHitBulletEvent e) {
+    	bulletHitBulletPen = 15;
+    }
+
     public void onBulletHit(BulletHitEvent e) {
         if (e.getBullet().getPower()>=2){
             bulletHitPen = 40;
@@ -481,37 +486,38 @@ public void run() {
     }
 
     public void onRobotDeathEvent(RobotDeathEvent e){
-        robotDeathPen = 20;
+        robotDeathPen = 5;
+        enemies.remove(e.getName());
+        current_enemies --;
     }
 
     public void onStatus(StatusEvent e) {
-        if (lastState == null) {
-            out.println("INITIAL STATE");
-            lastState = getCurrentState();
-            STEPS_DONE = mainNetwork.loadWeights("weights", out);
+        if (RobocodeRunner.CURRENT_EPISODE % TARGET_UPDATE_FREQ == 0) {
+            out.println("#############################################");
+            out.println("#### COPYING WEIGHTS TO TARGET NETWORK ####");
+            out.println("#############################################");
+            RobocodeRunner.mainNetwork.copyWeights(RobocodeRunner.targetNetwork);
         }
 
-        if (CURRENT_EPISODE % TARGET_UPDATE_FREQ == 0) {
-            out.println("COPYING WEIGHTS TO TMP NETWORK");
-            mainNetwork.copyWeights(weightsHolder);
-
-            if(ctr % 2 == 0){
-                out.println("COPYTING WEIGHTS TO TARGET NETWORK");
-                weightsHolder.copyWeights(targetNetwork);
-            }
-            ctr++;
-        }
-
+        lastState = getCurrentState();
 
 		double energy = e.getStatus().getEnergy();
 		int enemy_count = e.getStatus().getOthers();
-		int max_enemies = 3;
 		int enemies_dead = max_enemies - enemy_count;
 
         if (lastEnergy > energy)
         {
             currentReward += -15;
         }
+        else if (lastEnergy < energy)
+        {
+            currentReward -= 15;
+        }
+        else
+        {
+            currentReward += 5;
+        }
+
 		if(hitWallPen!=0.0) {
 			currentReward += hitWallPen;
 			hitWallPen = 0.0;
@@ -519,6 +525,10 @@ public void run() {
 		if(hitEnemyPen!=0.0) {
 			currentReward += hitEnemyPen;
 			hitEnemyPen = 0.0;
+		}
+        if(bulletHitBulletPen!=0.0) {
+			currentReward += bulletHitBulletPen;
+			bulletHitBulletPen = 0.0;
 		}
 		if(hitByBullet!=0.0) {
 			currentReward += hitByBullet;
@@ -540,16 +550,16 @@ public void run() {
 			currentReward += robotDeathPen;
 			robotDeathPen = 0.0;
 		}
-        /* 
-		if (energy > 0 && enemies_dead > 0)
+		
+        if (energy > 0 && enemies_dead > 0)
 		{
-			currentReward += 1.5;
+			currentReward += 15;
 		}
 		else if (energy > 0 && enemies_dead > 1)
 		{
-			currentReward += 3;
+			currentReward += 30;
 		}
-        */
+
         if ((this.getX() > WIDTH - THRESHOLD) || (this.getX() < THRESHOLD) || (this.getY() > HEIGHT - THRESHOLD) || (this.getY() < THRESHOLD)) {
             //out.println("We have reached the threshold");
             currentReward += -5;
@@ -557,80 +567,87 @@ public void run() {
                 //out.println("We are moving towards the wall.");
                 currentReward += -10;
             } else {
-                currentReward += 10;
+                currentReward += 5;
             }
         }
         
         out.println("LAST STATE: "+stringifyField(lastState.toArray()));
-        if(lastQValues == null){
-            lastQValues = mainNetwork.execute(lastState.toArray());
-        }
-        
+        lastQValues = RobocodeRunner.mainNetwork.execute(lastState.toArray());
         out.println("LAST Q VALUES: "+stringifyField(lastQValues));
         
-        currentAction = chooseAction(lastQValues);
-        executeAction(currentAction);
+        //lastAction = chooseAction(lastQValues);
+        //executeAction(lastAction);
 
-        out.println("ACTION: "+currentAction); 
+        out.println("ACTION: "+lastAction); 
         out.println("REWARD: "+lastReward);
         //out.println("NUMBER OF WEIGHTS: " + RobocodeRunner.mainNetwork.getNumOfWeights());
 
         currentState = getCurrentState();
-        //out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
-        currentQValues = targetNetwork.execute(currentState.toArray());
-        out.println("CURRENT Q VALUES: "+stringifyField(currentQValues));
+        out.println("CURRENT STATE: "+stringifyField(currentState.toArray()));
+        currentQValues = RobocodeRunner.targetNetwork.execute(currentState.toArray());
+        out.println("TARGET Q VALUES: "+stringifyField(currentQValues));
         double error = 0.0;
-        out.println("SIZE OF MEMORY: "+memory.size());
-        //if(RobocodeRunner.memory.size() < BATCH_SIZE) {
-        //out.println("USING SINGLE INPUT");
-        double maxQ = getMaxQValue(currentQValues);
-        lastQValues[currentAction] = lastQValues[currentAction] + ALPHA * (lastReward + GAMMA * maxQ - lastQValues[currentAction]); //bellman
-        error = targetNetwork.backPropagate(lastState.toArray(), currentQValues);
-        out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
-        //}
-        //else{
-        //    out.println("USING BATCH INPUT");
-        //    ArrayList<Sample> trainingSet = getSamples(BATCH_SIZE);
-        //    double[][] lastStates = new double[trainingSet.size()][NUM_OF_INPUTS];
-        //    double[][] currentStates = new double[trainingSet.size()][NUM_OF_INPUTS];
-        //    int[] actions = new int[trainingSet.size()];
-        //    double[] rewards = new double[trainingSet.size()];
+        out.println("SIZE OF MEMORY: "+RobocodeRunner.memory.size());
+        if(RobocodeRunner.memory.size() < BATCH_SIZE) {
+            //out.println("USING SINGLE INPUT");
+            double maxQ = getMaxQValue(currentQValues); 
+            lastQValues[lastAction] = lastQValues[lastAction] + 0.1 * (lastReward/10 + GAMMA * maxQ - lastQValues[lastAction]);
+            error = RobocodeRunner.mainNetwork.backPropagate(lastState.toArray(), lastQValues); 
+            out.println("UPDATED Q VALUES: "+stringifyField(lastQValues));
+        
+        }
+        
+        else{
+            out.println("USING BATCH INPUT");
+            ArrayList<Sample> trainingSet = getSamples(BATCH_SIZE);
+            double[][] lastStates = new double[trainingSet.size()][NUM_OF_INPUTS];
+            double[][] currentStates = new double[trainingSet.size()][NUM_OF_INPUTS];
+            int[] actions = new int[trainingSet.size()];
+            double[] rewards = new double[trainingSet.size()];
 //
-        //    double[][] lastQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
-        //    double[][] currentQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
-        //    double[] maxQs = new double[trainingSet.size()];
+            double[][] lastQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
+            double[][] currentQs = new double[trainingSet.size()][NUM_OF_OUTPUTS];
+            double[] maxQs = new double[trainingSet.size()];
 //
-        //    for (int i = 0; i < trainingSet.size(); i++) {
-        //        lastStates[i] = trainingSet.get(i).getLastState().toArray();
-        //        currentStates[i] = trainingSet.get(i).getCurrentState().toArray();
-        //        actions[i] = trainingSet.get(i).getAction();
-        //        rewards[i] = trainingSet.get(i).getReward();
-        //    }
-        //    
-        //    lastQs = RobocodeRunner.mainNetwork.executeBatch(lastStates);
-        //    currentQs = RobocodeRunner.targetNetwork.executeBatch(currentStates);
-        //    for (int i = 0; i < trainingSet.size(); i++) {
-        //        maxQs[i] = getMaxQValue(currentQs[i]);
+            for (int i = 0; i < trainingSet.size(); i++) {
+                lastStates[i] = trainingSet.get(i).getLastState().toArray();
+                currentStates[i] = trainingSet.get(i).getCurrentState().toArray();
+                actions[i] = trainingSet.get(i).getAction();
+                rewards[i] = trainingSet.get(i).getReward();
+            }
+            
+            lastQs = RobocodeRunner.mainNetwork.executeBatch(lastStates);
+            currentQs = RobocodeRunner.targetNetwork.executeBatch(currentStates);
+            for (int i = 0; i < trainingSet.size(); i++) {
+                maxQs[i] = getMaxQValue(currentQs[i]);
 //
-        //        lastQs[i][actions[i]] = lastQs[i][actions[i]] + ALPHA * (rewards[i] + GAMMA * maxQs[i] - lastQs[i][actions[i]]);
-        //        //out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
-        //    }
-            //error = RobocodeRunner.mainNetwork.batchBackPropagate(lastStates, lastQs);
-        //}
+                lastQs[i][actions[i]] = Math.tanh(lastQs[i][actions[i]] + 0.1 * (rewards[i] + GAMMA * maxQs[i] - lastQs[i][actions[i]]));
+                out.println("UPDATED Q VALUES: "+stringifyField(lastQs[i]));
+            }
+            error = RobocodeRunner.mainNetwork.batchBackPropagate(lastStates, lastQs);
+        }
         
         out.println("HUBER LOSS: "+error);
-        if (memory.size() >= MEMORY_SIZE) {
-            memory.remove(0);
+        if (RobocodeRunner.memory.size() >= MEMORY_SIZE) {
+            RobocodeRunner.memory.remove(0);
         }
-        memory.add(new Sample(lastState, currentAction, lastReward, currentState));
-        
+        RobocodeRunner.memory.add(new Sample(lastState, lastAction, lastReward/10, currentState));
 
-        CURRENT_EPISODE ++;
+        RobocodeRunner.CURRENT_EPISODE ++;
         lastEnergy = energy;
 		lastState = currentState;
-		lastReward = currentReward;
         lastAction = currentAction;
-        lastQValues = currentQValues;
-		currentReward = 1;
+		lastReward = currentReward;
+		currentReward = 0.0;
 	}
+
+    /**
+     * onWin:  Do a victory dance
+     */
+    public void onWin(WinEvent e) {
+        for (int i = 0; i < 50; i++) {
+            turnRight(30);
+            turnLeft(30);
+        }
+    }
 }

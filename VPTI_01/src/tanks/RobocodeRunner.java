@@ -19,20 +19,19 @@ import sample.Sample;
 import sample.SigmoidalTransfer;
 import sample.MultiLayerPerceptron;
 import sample.QLearningRobotV2;
-import sample.LeakyRelu;
 
 public class RobocodeRunner {
 
-	public static final double ALPHA = 0.0001;
-	public static final int NUM_OF_INPUTS = 19;
+	public static final double ALPHA = 0.001;
+	public final static int BATCH_SIZE = 15;
+	public static final int NUM_OF_INPUTS = 28;
     public static final int NUM_OF_OUTPUTS = QLearningRobotV2.Action.values().length; 
-	public static int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 64, 128, 256, 512, NUM_OF_OUTPUTS};
+	public static int[] NUM_OF_NEURONS_PER_LAYER = new int[]{NUM_OF_INPUTS, 32, 64, 128, 256, 512, NUM_OF_OUTPUTS};
 	
 	public static MultiLayerPerceptron mainNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, ALPHA, new ReLU());
     public static MultiLayerPerceptron targetNetwork = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, ALPHA, new ReLU());
-	public static MultiLayerPerceptron weightsHolder = new MultiLayerPerceptron(NUM_OF_NEURONS_PER_LAYER, ALPHA, new ReLU());
 
-	public static int NUM_OF_ROUNDS = 1000;
+	public static int NUM_OF_ROUNDS = 100000;
 	public static int CURRENT_EPISODE = 0;
 	public static int STEPS_DONE = 0;                  // How many times we have made a decision
 	// THIS SHOULD DO IT
@@ -42,8 +41,8 @@ public class RobocodeRunner {
 
 	public static void main(String[] args) throws IOException {
 		String nazevTridyMehoRobota = "QLearningRobotV2";
-		String seznamProtivniku = "X_GPbot_2_169";
-		//String seznamProtivniku = "RL_DeadlyTurttle, GeneticTankBlueprint, X_GPbot_2_169";
+		//String seznamProtivniku = "X_GPbot_2_169";
+		String seznamProtivniku = "RL_DeadlyTurttle, GeneticTankBlueprint, X_GPbot_2_169";
 		//String seznamProtivniku = "GeneticTankBlueprint";
 
 		runRobocode(nazevTridyMehoRobota, seznamProtivniku);

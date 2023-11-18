@@ -16,21 +16,46 @@
  */
 package sample;
 
+import java.util.Random;
+
 public class Neuron 
 {
 	public double		Value;
 	public double[]		Weights;
 	public double		Bias;
 	public double		Delta;
-	
+	private Random		rand = new Random();
+
+	private double genWeight()
+    {
+        double mean = 0.0;
+        double stdDev = 0.05;
+        double randomValue = mean + stdDev * rand.nextGaussian();
+
+        return randomValue;
+    }
+
 	public Neuron(int prevLayerSize)
 	{
 		Weights = new double[prevLayerSize];
-		Bias = Math.random() / 10000000000000.0;
-		Delta = Math.random() / 10000000000000.0;
-		Value = Math.random() / 10000000000000.0;
+		Bias = genWeight();
+		Delta = genWeight();
+		Value = genWeight();
 		
 		for(int i = 0; i < Weights.length; i++)
-			Weights[i] = Math.random() / 10000000000000.0;
+			Weights[i] = genWeight();
+	}
+
+	public String stringifyWeights(){
+		String res = "[";
+		for(int i = 0; i < Weights.length+1; i++){
+			if(Weights.length - i == 1){
+				res += Weights[i] + "]";
+				break;
+			}
+			res += Weights[i] + ", ";
+		}
+
+		return res;
 	}
 }
