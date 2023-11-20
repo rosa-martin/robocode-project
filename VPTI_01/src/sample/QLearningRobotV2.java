@@ -511,7 +511,7 @@ public void run() {
         }
         else if (lastEnergy < energy)
         {
-            currentReward -= 15;
+            currentReward += 15;
         }
         else
         {
