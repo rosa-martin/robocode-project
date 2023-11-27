@@ -508,9 +508,13 @@ public class QLearningRobotV2 extends AdvancedRobot {
 
         if (lastEnergy > energy) {
             currentReward += -15;
-        } else if (lastEnergy < energy) {
-            currentReward -= 15;
-        } else {
+        }
+        else if (lastEnergy < energy)
+        {
+            currentReward += 15;
+        }
+        else
+        {
             currentReward += 5;
         }
 
