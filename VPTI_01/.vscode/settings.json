@@ -18,5 +18,9 @@
     "java.project.sourcePaths": [
         "src",
         "robots"
-    ]
+    ],
+    "java.format.settings.url": ".vscode/java-formatter.xml",
+    "[java]": {
+        "editor.insertSpaces": false
+    }
 }
